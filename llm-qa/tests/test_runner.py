@@ -1,0 +1,109 @@
+"""测试运行器与注册表自测。"""
+import asyncio
+
+from llmqa.assertors import AssertionFailed
+from llmqa.clients import ClientPool
+from llmqa.core import (
+    Severity,
+    SkipTest,
+    TestContext,
+    TestRunner,
+    Verdict,
+    clear_registry,
+    get_registered_cases,
+    test as register_test,   # 别名避免 pytest 把装饰器当测试收集
+)
+from llmqa.config import Settings
+from llmqa.datasets import DatasetManager
+from llmqa.prompts import PromptManager
+
+
+def make_ctx():
+    settings = Settings(default_provider="mock", providers={})
+    return TestContext(
+        run_id="t", settings=settings,
+        providers=ClientPool(settings),
+        prompts=PromptManager("__nonexistent__"),
+        datasets=DatasetManager("__nonexistent__"),
+    )
+
+
+def test_registry_and_runner_verdicts():
+    clear_registry()
+
+    @register_test(id="unit-001", suite="unit", name="通过用例", severity=Severity.LOW)
+    async def case_pass(ctx):
+        pass
+
+    @register_test(id="unit-002", suite="unit", name="失败用例")
+    async def case_fail(ctx):
+        raise AssertionFailed("预期失败")
+
+    @register_test(id="unit-003", suite="unit", name="错误用例", retries=0)
+    async def case_error(ctx):
+        raise RuntimeError("boom")
+
+    @register_test(id="unit-004", suite="unit", name="跳过用例")
+    async def case_skip(ctx):
+        raise SkipTest("环境不满足")
+
+    cases = get_registered_cases()
+    assert len(cases) == 4
+    runner = TestRunner(make_ctx, concurrency=4, retries_on_error=0)
+    report = asyncio.run(runner.run_all(cases))
+    verdicts = {o.case_id: o.verdict for o in report.outcomes}
+    assert verdicts["unit-001"] == Verdict.PASS
+    assert verdicts["unit-002"] == Verdict.FAIL
+    assert verdicts["unit-003"] == Verdict.ERROR
+    assert verdicts["unit-004"] == Verdict.SKIP
+    assert report.pass_rate == 0.25
+    clear_registry()
+
+
+def test_plain_assert_is_fail_not_error():
+    clear_registry()
+
+    @register_test(id="unit-005", suite="unit", name="普通断言")
+    async def case_plain(ctx):
+        assert 1 == 2, "普通断言失败"
+
+    runner = TestRunner(make_ctx, retries_on_error=3)
+    report = asyncio.run(runner.run_all(get_registered_cases()))
+    outcome = report.outcomes[0]
+    assert outcome.verdict == Verdict.FAIL
+    assert "普通断言失败" in outcome.message
+    clear_registry()
+
+
+def test_timeout_is_error():
+    clear_registry()
+
+    @register_test(id="unit-006", suite="unit", name="超时用例", timeout=0.1, retries=0)
+    async def case_slow(ctx):
+        await asyncio.sleep(1)
+
+    runner = TestRunner(make_ctx, retries_on_error=0)
+    report = asyncio.run(runner.run_all(get_registered_cases()))
+    assert report.outcomes[0].verdict == Verdict.ERROR
+    assert "超时" in report.outcomes[0].message
+    clear_registry()
+
+
+def test_filtering():
+    clear_registry()
+
+    @register_test(id="unit-007", suite="unit-a", tags=("smoke", "fast"))
+    async def case_a(ctx):
+        pass
+
+    @register_test(id="unit-008", suite="unit-b", tags=("slow",))
+    async def case_b(ctx):
+        pass
+
+    defs = {d.id: d for d in get_registered_cases()}
+    a, b = defs["unit-007"], defs["unit-008"]
+    assert a.matches(suites={"unit-a"}, tags=None, exclude_tags=None, min_severity=None)
+    assert not a.matches(suites={"unit-b"}, tags=None, exclude_tags=None, min_severity=None)
+    assert a.matches(suites=None, tags={"smoke"}, exclude_tags=None, min_severity=None)
+    assert not b.matches(suites=None, tags={"smoke"}, exclude_tags=None, min_severity=None)
+    clear_registry()

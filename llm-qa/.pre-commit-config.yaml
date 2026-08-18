@@ -1,0 +1,27 @@
+# pre-commit 钩子：pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+  - repo: local
+    hooks:
+      - id: compileall
+        name: python 语法检查
+        entry: python -m compileall -q src tests examples
+        language: system
+        pass_filenames: false
+      - id: prompts-validate
+        name: Prompt 契约校验
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)" && llmqa prompts validate'
+        language: system
+        pass_filenames: false
+      - id: prompts-scan
+        name: Prompt 注入扫描
+        entry: bash -c 'cd "$(git rev-parse --show-toplevel)" && llmqa prompts scan'
+        language: system
+        pass_filenames: false

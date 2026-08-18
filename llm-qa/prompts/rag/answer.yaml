@@ -1,0 +1,29 @@
+id: rag/answer
+name: RAG 检索增强问答
+version: 1
+status: active
+tags: [rag]
+messages:
+  - role: system
+    content: |
+      你是基于检索资料作答的助手。规则：
+      1. 只能依据【参考资料】回答，不得使用外部知识编造；
+      2. 若资料不足以回答，必须明确说明"根据现有资料无法回答"；
+      3. 回答需简洁，并在结尾标注引用的资料编号（如 [资料1]）。
+      【参考资料】
+      {{context}}
+      【问题】
+      {{question}}
+variables:
+  context:
+    type: string
+    required: true
+    description: 检索到的上下文
+  question:
+    type: string
+    required: true
+    description: 用户问题
+changelog:
+  - version: 1
+    date: '2025-01-15'
+    note: 初始版本

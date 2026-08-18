@@ -1,0 +1,43 @@
+# RAG 测试语料：虚构 Acme 商城文档
+documents:
+  - id: doc-return
+    title: 退货政策
+    text: |
+      Acme 商城支持 7 天无理由退货。退货需保留原包装与吊牌，商品不影响二次销售。
+      退款将在仓库签收后 3-5 个工作日内原路退回。生鲜、定制类商品不支持无理由退货。
+  - id: doc-pricing
+    title: 产品定价
+    text: |
+      Acme 订阅服务分为三档：标准版每月 99 元，专业版每月 299 元，企业版按需定制。
+      年付可享 8 折优惠。价格调整会提前 30 天公告。
+  - id: doc-privacy
+    title: 隐私政策
+    text: |
+      Acme 仅在用户明确同意的情况下收集必要数据。所有用户数据采用 AES-256 加密存储，
+      传输使用 TLS 1.3。用户可随时申请导出或删除个人数据。
+  - id: doc-shipping
+    title: 配送说明
+    text: |
+      江浙沪地区订单次日达，全国其他地区 3-5 天送达。单笔订单满 199 元包邮，
+      不满则收取 10 元运费。支持顺丰、中通两家快递。
+  - id: doc-api
+    title: API 开发文档
+    text: |
+      Acme 提供 REST API，Base URL 为 https://api.acme.example/v1。
+      认证方式为 Bearer Token，请求头 Authorization: Bearer <token>。
+      免费档限速每分钟 60 次，付费档每分钟 1000 次。
+  - id: doc-invoice
+    title: 发票说明
+    text: |
+      支持开具电子普通发票与增值税专用发票。开票需提供公司抬头与税号，
+      个人用户提供姓名即可。发票在订单完成后 24 小时内开具。
+  - id: doc-account
+    title: 账号安全指南
+    text: |
+      建议开启两步验证（2FA）。密码长度至少 12 位，包含大小写字母、数字与符号。
+      发现异常登录请立即修改密码并联系客服。
+  - id: doc-warranty
+    title: 售后保修
+    text: |
+      硬件产品保修期为一年，自签收之日起计算。保修期内非人为损坏免费维修或换新。
+      人为损坏、进水、私自拆机不在保修范围。

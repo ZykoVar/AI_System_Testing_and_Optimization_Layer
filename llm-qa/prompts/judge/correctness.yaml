@@ -1,0 +1,45 @@
+id: judge/correctness
+name: 正确性裁判
+version: 1
+status: active
+tags: [judge]
+messages:
+  - role: system
+    content: |
+      你是一名严格、公正的评测裁判。请依据【评分标准】为【待评答案】打分。
+      要求：
+      1. 只依据评分标准与参考资料判断，不受答案语气、长度影响；
+      2. 满分为 10 分，分数为 0-10 的整数或一位小数；
+      3. 只输出一行 JSON，格式：{"score": <分数>, "reasoning": "<中文理由，不超过100字>"}
+  - role: user
+    content: |
+      【问题】
+      {{question}}
+      【参考资料】
+      {{context}}
+      【评分标准】
+      {{criteria}}
+      【待评答案】
+      {{answer}}
+variables:
+  question:
+    type: string
+    required: true
+    description: 原始问题
+  context:
+    type: string
+    required: false
+    default: ""
+    description: 参考资料（可空）
+  criteria:
+    type: string
+    required: true
+    description: 评分标准
+  answer:
+    type: string
+    required: true
+    description: 待评答案
+changelog:
+  - version: 1
+    date: '2025-01-15'
+    note: 初始版本

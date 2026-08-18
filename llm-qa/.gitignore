@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# 测试产物
+reports/
+artifacts/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 密钥与环境
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp

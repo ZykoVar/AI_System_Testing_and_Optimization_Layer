@@ -1,0 +1,34 @@
+# RAG 检索评估查询集（含标注相关文档与参考答案）
+queries:
+  - id: rq-001
+    query: 买了东西不想要了，几天内可以退货？
+    relevant_doc_ids: [doc-return]
+    golden_answer: 7 天内可以无理由退货，退款 3-5 个工作日到账。
+  - id: rq-002
+    query: 专业版订阅一个月多少钱？
+    relevant_doc_ids: [doc-pricing]
+    golden_answer: 专业版每月 299 元。
+  - id: rq-003
+    query: 多少钱可以免运费？
+    relevant_doc_ids: [doc-shipping]
+    golden_answer: 单笔订单满 199 元包邮。
+  - id: rq-004
+    query: 调用 API 需要什么认证方式？
+    relevant_doc_ids: [doc-api]
+    golden_answer: 使用 Bearer Token 认证。
+  - id: rq-005
+    query: 硬件产品保修多长时间？
+    relevant_doc_ids: [doc-warranty]
+    golden_answer: 保修期一年，非人为损坏免费维修或换新。
+  - id: rq-006
+    query: 开发票需要提供什么信息？
+    relevant_doc_ids: [doc-invoice]
+    golden_answer: 公司抬头与税号，个人用户提供姓名。
+  - id: rq-007
+    query: 退货政策和保修政策分别是什么？
+    relevant_doc_ids: [doc-return, doc-warranty]
+    golden_answer: 退货是 7 天无理由；保修是一年，覆盖非人为损坏。
+  - id: rq-008
+    query: 你们支持分期付款吗？
+    relevant_doc_ids: []
+    golden_answer: 资料中未提及，应回答无法确定/无法回答。

@@ -1,0 +1,104 @@
+
+# 编写测试用例
+
+## 1. 最小用例
+
+```python
+from llmqa.core.registry import test
+from llmqa.core.models import Severity, TestContext
+from llmqa.assertors import assert_contains, assert_json_schema
+from llmqa.clients import Message, MockRule, scripted_or_real
+
+@test(id="llm-fmt-001", suite="llm", name="JSON 格式合规",
+      tags=("format", "smoke"), severity=Severity.MEDIUM, timeout=60)
+async def case_json(ctx: TestContext) -> None:
+    """要求模型输出 JSON 并校验 Schema。"""
+    client = scripted_or_real(ctx, rules=[
+        MockRule(match="JSON", reply='{"sum": 2}')])
+    resp = await client.generate([Message.user("用 JSON 返回 1+1")])
+    assert_json_schema(resp.text, {"type": "object",
+        "required": ["sum"], "properties": {"sum": {"type": "integer"}}})
+```
+
+要点：
+- 用例 = 一个 async 函数，通过 `@test` 注册；`suite` 决定归属；
+- `id` 全局唯一，建议 `<套件>-<域>-<序号>`（如 `rag-ret-001`）；
+- 成功返回 = PASS；失败 = 抛 `AssertionFailed` / `AssertionError`；
+- 跳过 = `raise SkipTest("原因")`（如环境缺 API Key）；
+- 其余异常 = ERROR 并自动重试（`retries_on_error`）。
+
+## 2. 获取被测客户端：双态运行
+
+```python
+client = scripted_or_real(ctx, rules=[...])
+```
+
+- mock 态（默认）：规则脚本模拟被测模型 → 离线验证测试逻辑；
+- 真实态（`--provider openai` 等）：直连模型 → 真实验收。
+- 需要固定客户端时：`ctx.client()` / `ctx.client("openai")`；
+- 构造临时脚本 mock：`ctx.providers.get_mock(rules=[...])`。
+
+## 3. Mock 规则速查
+
+```python
+MockRule(match="正则", reply="文本")                       # 匹配最后一条用户消息
+MockRule(match="正则", reply={"refusal": True})            # 标准拒答
+MockRule(match="正则", reply={"content": "说", "tool_calls": [
+    {"id": "c1", "name": "get_weather", "arguments": {"city": "北京"}}]}, times=1)
+MockRule(match="正则", error={"status": 429, "message": "limited"})   # 故障注入
+MockRule(match="正则", reply="...", match_transcript=True) # 匹配整个会话转录
+MockRule(match=".*", reply="兜底")                          # 兜底
+```
+
+规则按注册顺序首个命中生效；`times` 限制命中次数（Agent 多轮脚本必须用）。
+
+## 4. 断言库
+
+确定性断言（`llmqa.assertors`）：
+
+| 函数 | 用途 |
+| --- | --- |
+| `assert_contains / assert_not_contains` | 关键词存在/禁止（`any_of` 参数支持任一命中） |
+| `assert_matches` | 正则匹配 |
+| `assert_json_valid / assert_json_schema` | JSON 解析（剥代码围栏）+ 轻量 Schema 校验 |
+| `assert_similarity` | 文本相似度 ≥ 阈值（difflib，确定性） |
+| `assert_word_count / assert_char_length` | 字数/字符数区间 |
+| `assert_refusal / assert_not_refusal` | 拒答检测（中英文话术）与防误拒 |
+| `assert_in_language` | 中英文启发式占比 |
+
+软断言（LLM-as-Judge，用于语义维度）：
+
+```python
+judge_client = ctx.providers.get_mock(rules=[
+    MockRule(match="评分标准", reply='{"score": 9, "reasoning": "准确完整"}')])
+verdict = await Judge(judge_client).assert_score(
+    question=q, answer=resp.text, context="", criteria="答案必须正确且完整",
+    min_score=ctx.settings.thresholds.judge_min_score)
+```
+
+生产建议：裁判模型与被测模型解耦，固定裁判 Prompt 版本
+（`prompts/judge/correctness.yaml` 为托管模板）。
+
+## 5. 测试上下文（TestContext）
+
+| 成员 | 说明 |
+| --- | --- |
+| `ctx.client(name=None)` | 连接池取客户端（默认 provider） |
+| `ctx.settings` | 全局设置与阈值（`.thresholds.judge_min_score` 等） |
+| `ctx.datasets.load("golden_qa")` | 加载数据集（YAML/JSON/CSV） |
+| `ctx.prompts.render(id, vars, version=...)` | 渲染版本化 Prompt |
+| `ctx.providers.get_mock(...)` | 构造脚本化临时 Mock |
+
+## 6. 规范与最佳实践
+
+1. **用例快速**：mock 下每个用例应在百毫秒级完成；压测 `count ≤ 100`、
+   `concurrency ≤ 20`；禁止 `sleep`。
+2. **严重级**：CRITICAL=越狱/金丝雀泄露/工具越权；HIGH=注入/护栏/该拒未拒；
+   MEDIUM=明显质量缺陷；LOW=格式一致性细节。
+3. **可诊断**：失败消息写清"期望什么、实际什么"；数值指标放
+   `AssertionFailed(..., metrics={...})`，证据放 evidence。
+4. **数据外置**：可复用样本进 `datasets/`；一次性样本可内联但加注释。
+5. **不测 Mock 测逻辑**：mock 分支断言的是测试逻辑正确性，不是"模型好"。
+6. **注册收尾**：新模块必须在 `suites/<suite>/__init__.py` 导入，
+   否则 `discover` 发现不到。
+7. **写自测**：框架级变更在 `tests/` 补 pytest 用例。
