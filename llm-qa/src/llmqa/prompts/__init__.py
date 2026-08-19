@@ -1,4 +1,5 @@
-"""Prompt 管理子系统：版本化注册表、渲染校验、diff 与注入扫描。"""
+"""Prompt 管理子系统：版本化注册表、渲染校验、diff、注入扫描与 A/B 测试。"""
+from llmqa.prompts.abtest import ABChange, ABTestResult, render_ab_report, run_abtest
 from llmqa.prompts.guards import InjectionFinding, PromptScanner, ScanReport
 from llmqa.prompts.manager import (
     PromptError,
@@ -14,4 +15,5 @@ __all__ = [
     "PromptManager", "PromptTemplate", "PromptMessage", "VariableSpec",
     "PromptError", "PromptNotFound", "PromptRenderError",
     "PromptScanner", "ScanReport", "InjectionFinding",
+    "run_abtest", "ABTestResult", "ABChange", "render_ab_report",
 ]

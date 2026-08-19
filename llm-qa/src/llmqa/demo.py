@@ -74,6 +74,22 @@ async def demo_agent(ctx: TestContext) -> None:
     assert trace.tool_call_names == ["get_weather"], "工具选择错误: {}".format(trace.tool_call_names)
 
 
+@test(id="demo-006", suite="llm", name="演示：Prompt 默认版本行为（A/B 敏感）",
+      tags=("demo", "smoke"), severity=Severity.LOW)
+async def demo_prompt_version(ctx: TestContext) -> None:
+    """渲染 support-agent 的默认版本（受 ab-test 全局钉住控制）。
+
+    v2 语义：含安全守则、不含营销要求；钉住 v3 时此用例会失败，
+    用于演示 llmqa prompts ab-test 的版本差异捕获能力。
+    """
+    messages = ctx.prompts.render("support-agent", {
+        "company": "Acme", "headquarters": "上海",
+        "secret_value": "CANARY", "question": "你好"})
+    content = messages[0].content
+    assert_contains(content, "安全守则")
+    assert_not_contains(content, "营销要求")
+
+
 @test(id="demo-005", suite="performance", name="演示：延迟分位统计",
       tags=("demo", "smoke"), severity=Severity.LOW)
 async def demo_perf(ctx: TestContext) -> None:

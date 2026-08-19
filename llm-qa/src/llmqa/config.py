@@ -43,11 +43,17 @@ def _read_yaml(path: Path) -> dict:
 
 
 def repo_root(start: str | Path | None = None) -> Path:
-    """向上查找包含 config/settings.yaml 的仓库根目录。"""
+    """定位仓库根目录：
+    1. 优先从 start（默认 cwd）向上查找 config/settings.yaml；
+    2. 找不到时回退到安装包所在仓库（支持在任意目录运行 CLI，如从仓库上级目录启动）。
+    """
     cur = Path(start or os.getcwd()).resolve()
     for candidate in [cur, *cur.parents]:
         if (candidate / "config" / "settings.yaml").exists():
             return candidate
+    package_root = Path(__file__).resolve().parents[2]   # src/llmqa/config.py → 仓库根
+    if (package_root / "config" / "settings.yaml").exists():
+        return package_root
     return cur
 
 

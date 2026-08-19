@@ -74,6 +74,19 @@ def test_get_missing(manager):
         manager.get("no/such/prompt")
 
 
+def test_get_prefers_active_over_deprecated(tmp_path):
+    # 默认取最新 active；高版本号但已废弃的版本不会被默认返回
+    (tmp_path / "a.yaml").write_text(
+        "id: demo-p\nversion: 1\nstatus: active\nmessages:\n"
+        "  - role: system\n    content: 'v1'\nvariables: {}\n", encoding="utf-8")
+    (tmp_path / "b.yaml").write_text(
+        "id: demo-p\nversion: 2\nstatus: deprecated\nmessages:\n"
+        "  - role: system\n    content: 'v2'\nvariables: {}\n", encoding="utf-8")
+    manager2 = PromptManager(tmp_path).load()
+    assert manager2.get("demo-p").version == 1           # active 优先
+    assert manager2.get("demo-p", 2).version == 2        # 仍可按版本号显式取用（回滚/审计）
+
+
 def test_diff(manager):
     diff = manager.diff("support-agent", 1, 2)
     assert "安全守则" in diff
@@ -82,6 +95,25 @@ def test_diff(manager):
 
 def test_validate_clean(manager):
     assert manager.validate() == []
+
+
+def test_pin_controls_default_version(manager):
+    vars_ = {"company": "Acme", "headquarters": "上海",
+             "secret_value": "CANARY", "question": "你好"}
+    assert "安全守则" in manager.render("support-agent", vars_)[0].content   # 默认 v2
+    manager.pin("support-agent", 1)
+    assert "安全守则" not in manager.render("support-agent", vars_)[0].content  # 钉住 v1
+    assert "安全守则" in manager.render("support-agent", vars_, version=2)[0].content  # 显式优先
+    manager.unpin("support-agent")
+    assert "安全守则" in manager.render("support-agent", vars_)[0].content   # 解除恢复
+
+
+def test_repo_root_falls_back_to_package_location(tmp_path):
+    # 从仓库外任意目录启动 CLI 时，repo_root 应回退到安装包所在仓库
+    from llmqa.config import repo_root
+    root = repo_root(start=tmp_path)   # tmp_path 下没有 config/settings.yaml
+    assert (root / "config" / "settings.yaml").exists()
+    assert (root / "prompts" / "support-agent" / "v2.yaml").exists()
 
 
 def test_scanner_detects_injection_in_variable():

@@ -117,3 +117,6 @@ llmqa run --provider anthropic --suite llm
   `--no-color` 并重定向输出到文件。
 - **压测想更真实？** 在 `MockRule(latency_ms=...)` 中调大模拟延迟，
   或直接 `--provider openai` 压真实端点（注意成本与限流，先小并发）。
+- **在任意目录运行？** CLI 会自动定位仓库根（向上查找 config/settings.yaml，
+  找不到则回退到安装包所在仓库）；也可显式指定：
+  `llmqa --config D:\path\to\llm-qa\config prompts list`。

@@ -4,6 +4,7 @@
     llmqa run --suite security --tag smoke --severity MEDIUM
     llmqa run --provider openai --concurrency 16
     llmqa prompts list / show / validate / scan / diff / promote
+    llmqa prompts ab-test <prompt_id> <版本A> <版本B> [--include-demo]
     llmqa datasets list
     llmqa demo
 """
@@ -11,11 +12,22 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
+
+
+def _resolve_root(config_dir: str | None = None) -> Path:
+    """--config 指向 config 目录；未提供时自动定位仓库根（含安装包回退）。"""
+    from llmqa.config import repo_root
+    if config_dir:
+        return Path(config_dir).resolve().parent
+    return repo_root()
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="llmqa", description="企业级 LLM/Agent 质量保障测试框架")
+    parser.add_argument("--config", default=None,
+                        help="config 目录路径（默认自动定位仓库根/config，支持任意目录运行）")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_run = sub.add_parser("run", help="运行测试套件")
@@ -30,7 +42,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--concurrency", type=int, default=None)
     p_run.add_argument("--timeout", type=float, default=None, help="单用例超时（秒）")
     p_run.add_argument("--fail-fast", action="store_true")
-    p_run.add_argument("--config", default=None, help="config 目录（默认仓库根/config）")
     p_run.add_argument("--report-dir", default=None)
     p_run.add_argument("--no-color", action="store_true")
     p_run.add_argument("--soft", action="store_true", help="失败时仍返回退出码 0")
@@ -53,6 +64,19 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p_promo.add_argument("status")
     p_promo.add_argument("--version", type=int, default=None)
 
+    p_ab = pr_sub.add_parser("ab-test", help="同一套用例在两个 Prompt 版本下对比运行")
+    p_ab.add_argument("prompt_id")
+    p_ab.add_argument("version_a", type=int)
+    p_ab.add_argument("version_b", type=int)
+    p_ab.add_argument("--suite", action="append", default=[])
+    p_ab.add_argument("--tag", action="append", default=[])
+    p_ab.add_argument("--exclude-tag", action="append", default=[])
+    p_ab.add_argument("--severity", default=None)
+    p_ab.add_argument("--provider", default=None)
+    p_ab.add_argument("--concurrency", type=int, default=None)
+    p_ab.add_argument("--include-demo", action="store_true",
+                      help="把内置演示用例纳入对比（demo-006 对版本敏感）")
+
     p_ds = sub.add_parser("datasets", help="数据集管理")
     p_ds.add_argument("--list", action="store_true", help="列出全部数据集")
 
@@ -71,7 +95,7 @@ def _run(args: argparse.Namespace) -> int:
     from llmqa.prompts import PromptManager
     from llmqa.suites import DEFAULT_PACKAGES
 
-    root = repo_root()
+    root = _resolve_root(args.config)
     settings = Settings.load(args.config or (root / "config"))
     prompts = PromptManager(root / "prompts").load()
     datasets = DatasetManager(root / "datasets")
@@ -118,9 +142,8 @@ def _run(args: argparse.Namespace) -> int:
 
 
 def _prompts(args: argparse.Namespace) -> int:
-    from llmqa.config import repo_root
     from llmqa.prompts import PromptManager, PromptScanner
-    root = repo_root()
+    root = _resolve_root(args.config)
     manager = PromptManager(root / "prompts").load()
     action = args.prompt_action
     if action == "list":
@@ -157,13 +180,42 @@ def _prompts(args: argparse.Namespace) -> int:
     elif action == "promote":
         manager.promote(args.prompt_id, args.status, args.version)
         print("已流转 {} → {}".format(args.prompt_id, args.status))
+    elif action == "ab-test":
+        return _prompts_abtest(args)
     return 0
 
 
-def _datasets(args: argparse.Namespace) -> int:
-    from llmqa.config import repo_root
+def _prompts_abtest(args: argparse.Namespace) -> int:
+    """A/B 对比：两个 Prompt 版本各跑一遍同一批用例，产出对比报告。"""
+    from llmqa.clients import ClientPool
+    from llmqa.config import Settings
+    from llmqa.core.models import Severity
     from llmqa.datasets import DatasetManager
-    for name in DatasetManager(repo_root() / "datasets").list():
+    from llmqa.prompts import render_ab_report, run_abtest
+
+    root = _resolve_root(args.config)
+    settings = Settings.load(args.config or (root / "config"))
+    pool = ClientPool(settings)
+    datasets = DatasetManager(root / "datasets")
+    min_sev = Severity(args.severity.upper()) if args.severity else None
+    result = run_abtest(
+        root, settings, pool, datasets, args.prompt_id,
+        args.version_a, args.version_b,
+        suites=set(args.suite) or None, tags=set(args.tag) or None,
+        exclude_tags=set(args.exclude_tag) or None, min_severity=min_sev,
+        concurrency=args.concurrency, provider=args.provider,
+        include_demo=args.include_demo)
+    files = render_ab_report(result, root / settings.report_dir / "abtest")
+    print()
+    print(result.summary_text())
+    print("A/B 报告: " + ", ".join("{} → {}".format(k, v) for k, v in files.items()))
+    print("标准报告: reports/{} 与 reports/{}".format(result.run_id_a, result.run_id_b))
+    return 1 if result.regressions else 0
+
+
+def _datasets(args: argparse.Namespace) -> int:
+    from llmqa.datasets import DatasetManager
+    for name in DatasetManager(_resolve_root(args.config) / "datasets").list():
         print(name)
     return 0
 
@@ -171,6 +223,7 @@ def _datasets(args: argparse.Namespace) -> int:
 def _demo(args: argparse.Namespace) -> int:
     from llmqa import demo  # noqa: F401 —— 导入即注册演示用例
     return demo.run()
+
 
 
 def main(argv: list[str] | None = None) -> int:

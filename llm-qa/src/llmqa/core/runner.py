@@ -149,8 +149,9 @@ class TestRunner:
 
         start = time.perf_counter()
         await asyncio.gather(*(worker(c) for c in cases))
+        import uuid
         return TestReport(
-            run_id=dt.datetime.now().strftime("%Y%m%d-%H%M%S"),
+            run_id=dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4],
             provider=provider_name,
             started_at=dt.datetime.now().isoformat(timespec="seconds"),
             duration_ms=(time.perf_counter() - start) * 1000,

@@ -86,6 +86,19 @@ class PromptManager:
     def __init__(self, root: str | Path):
         self.root = Path(root)
         self._templates: dict[str, dict[int, PromptTemplate]] = {}
+        self._pins: dict[str, int] = {}
+
+    # ---------- 全局版本钉住（A/B 测试用） ----------
+    def pin(self, prompt_id: str, version: int) -> None:
+        """钉住某 Prompt 的默认渲染版本；render 未显式指定 version 时生效。"""
+        self._pins[prompt_id] = version
+
+    def unpin(self, prompt_id: str | None = None) -> None:
+        """解除钉住；prompt_id 为 None 时清空全部。"""
+        if prompt_id is None:
+            self._pins.clear()
+        else:
+            self._pins.pop(prompt_id, None)
 
     # ---------- 加载与查询 ----------
     def load(self) -> "PromptManager":
@@ -125,7 +138,9 @@ class PromptManager:
         if not versions:
             raise PromptNotFound("Prompt 不存在: {}".format(prompt_id))
         if version is None:
-            version = max(versions)
+            # 默认语义：取最新 active 版本；无 active 时回退到最大版本号
+            active = [v for v, t in versions.items() if t.status == "active"]
+            version = max(active) if active else max(versions)
         if version not in versions:
             raise PromptNotFound("Prompt {} 无版本 v{}（现有: {}）".format(
                 prompt_id, version, sorted(versions)))
@@ -134,7 +149,12 @@ class PromptManager:
     # ---------- 渲染 ----------
     def render(self, prompt_id: str, variables: dict[str, Any] | None = None,
                version: int | None = None, *, strict: bool = True) -> list[Message]:
-        """渲染为客户端 Message 列表；校验必填变量与未声明变量。"""
+        """渲染为客户端 Message 列表；校验必填变量与未声明变量。
+
+        版本解析优先级：显式 version 参数 > pin() 全局钉住 > 最新 active。
+        """
+        if version is None:
+            version = self._pins.get(prompt_id)
         template = self.get(prompt_id, version)
         variables = dict(variables or {})
         # 1. 必填校验

@@ -113,3 +113,32 @@ scan_ignore: [提示词窃取]
 
 配合安全红队套件：把 `secret_value` 换成金丝雀值，
 跑 `llmqa run --suite security` 验证新 Prompt 的注入抵抗能力。
+
+## 7. A/B 测试（ab-test）
+
+发布前想量化"这个版本改动了什么"？用同一批用例在两个版本下对比运行：
+
+```powershell
+llmqa prompts ab-test support-agent 2 3 --include-demo
+llmqa prompts ab-test support-agent 2 3 --suite llm --severity MEDIUM
+```
+
+机制：
+- `PromptManager.pin(prompt_id, version)` 全局钉住默认渲染版本；
+- 用例中未显式指定 version 的 `render()` 解析到被钉住版本，显式指定（如安全套件钉 v2）不受影响；
+- 两次运行各留标准报告（可审计），另产出对比报告
+  `reports/abtest/abtest-<时间戳>-<prompt>-vA-vs-vB.{md,json}`；
+- 逐用例分类：**回归**（A 通过 → B 失败）、改善、指标漂移、失败消息变化、未变化；
+- 退出码：存在回归 = 1（CI 可作门禁），否则 0。
+
+演示（本仓库真实用例）：`support-agent` v3 加入了"营销推荐语"要求，
+内置演示用例 demo-006 断言默认版本不含营销要求——
+`ab-test support-agent 2 3 --include-demo --tag demo` 会精确捕获该回归：
+
+```text
+Prompt support-agent v2 vs v3 | 共 6 例 | 未变化 5 | 回归 1 | 改善 0 | 指标漂移 0
+```
+
+推荐流程：新建 vN+1（draft）→ 跑 `ab-test <id> N N+1` →
+无回归且改善可接受 → promote active；有回归 → 按报告逐条分析或回滚。
+
