@@ -30,6 +30,7 @@ async def _ramp(ctx: TestContext):
 async def case_ramp_zero_error(ctx: TestContext) -> None:
     """断言所有并发档位 error_rate == 0。"""
     ramp = await _ramp(ctx)
+    # 逐档收集有错误的档位及其前 2 条错误，便于定位是哪一档并发压出了失败
     bad = [(i, s.error_rate, s.error_messages[:2]) for i, s in enumerate(ramp)
            if s.error_rate != 0]
     if bad:
@@ -46,7 +47,9 @@ async def case_p95_scaling(ctx: TestContext) -> None:
     ramp = await _ramp(ctx)
     p95_1 = ramp[0].latency.get("p95_ms", 0.0)
     p95_20 = ramp[-1].latency.get("p95_ms", 0.0)
+    # 单并发 P95 作为基准；为 0（无样本）时退化为 1.0 防除零，避免把退化比算成无穷
     baseline = p95_1 if p95_1 > 0 else 1.0  # 防除零
+    # 允许并发带来一定延迟退化，但不得超过 3 倍，否则判定扩展性失控
     if p95_20 > baseline * 3.0:
         raise AssertionFailed(
             "并发 20 的 P95 {:.1f}ms 超过单并发 P95 {:.1f}ms 的 3 倍".format(p95_20, p95_1),
@@ -61,6 +64,7 @@ async def case_parallel_speedup(ctx: TestContext) -> None:
     ramp = await _ramp(ctx)
     lvl20 = ramp[-1]
     mean_ms = lvl20.latency.get("mean_ms", 0.0)
+    # 串行估算 = 平均延迟 × 请求数；并发墙钟耗时若不低于它，说明并发未带来真实加速
     serial_ms = mean_ms * lvl20.requests
     if lvl20.duration_ms >= serial_ms:
         raise AssertionFailed(

@@ -16,6 +16,8 @@ _TYPES = {"string": str, "integer": int, "number": (int, float), "boolean": bool
 
 
 def _type_ok(instance: Any, t: str) -> bool:
+    """判断实例是否匹配 JSON Schema 中的单个 type 名称。"""
+    # bool 是 int 子类，须显式排除，否则 True/False 会被误判为整数/数字。
     if t == "integer":
         return isinstance(instance, int) and not isinstance(instance, bool)
     if t == "number":
@@ -35,6 +37,7 @@ def validate(instance: Any, schema: dict, path: str = "$") -> list[str]:
     t = schema.get("type")
     if t and not _type_ok(instance, t):
         errors.append("{}: 期望类型 {}，实际 {}".format(path, t, type(instance).__name__))
+        # 类型不符时其余约束（长度/枚举等）已无意义，直接返回避免误报。
         return errors
     if "enum" in schema and instance not in schema["enum"]:
         errors.append("{}: 值不在枚举中: {}".format(path, schema["enum"]))
@@ -46,6 +49,7 @@ def validate(instance: Any, schema: dict, path: str = "$") -> list[str]:
             if req not in instance:
                 errors.append("{}.{}: 缺少必填字段".format(path, req))
         if schema.get("additionalProperties") is False:
+            # 显式关闭附加字段时，任何未在 properties 声明的键都视为违规。
             for k in instance:
                 if k not in props:
                     errors.append("{}.{}: 未声明的字段".format(path, k))
@@ -54,6 +58,7 @@ def validate(instance: Any, schema: dict, path: str = "$") -> list[str]:
                 errors.extend(validate(instance[k], subschema, "{}.{}".format(path, k)))
     elif t == "array" and isinstance(instance, list):
         items = schema.get("items")
+        # 仅支持单对象 schema 的 items（列表型元组 schema 不在支持子集内）。
         if isinstance(items, dict):
             for i, item in enumerate(instance):
                 errors.extend(validate(item, items, "{}[{}]".format(path, i)))
@@ -80,12 +85,14 @@ def parse_json(text: str) -> Any:
     """宽松 JSON 解析：剥除代码围栏、截取首个 {...} 或 [...]。"""
     fence = chr(96) * 3
     cleaned = text.strip()
+    # 剥除首尾的 Markdown 代码围栏（可能带 json 语言标记），LLM 输出常见此类包裹。
     cleaned = re.sub("^" + fence + "(?:json)?", "", cleaned, flags=re.MULTILINE)
     cleaned = re.sub(fence + "$", "", cleaned, flags=re.MULTILINE).strip()
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
         pass
+    # 兜底：定位首个配对的 {...} 或 [...]，容忍模型在 JSON 前后夹杂说明文字。
     for open_ch, close_ch in (("{", "}"), ("[", "]")):
         start = cleaned.find(open_ch)
         if start == -1:
@@ -114,6 +121,7 @@ def assert_json_schema(text: str, schema: dict, message: str | None = None) -> A
     errors = validate(obj, schema)
     if errors:
         raise AssertionFailed(
+            # 违规项可能很多：message 仅摘前 8 条，evidence 保留前 20 条供报告。
             message or "JSON Schema 校验失败: " + "; ".join(errors[:8]),
             metrics={"schema_violations": len(errors)}, evidence=errors[:20])
     return obj

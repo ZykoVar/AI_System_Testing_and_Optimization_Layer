@@ -31,7 +31,7 @@ async def one_sentence(ctx: TestContext) -> None:
     ])
     resp = await client.generate(
         [Message.user("请用一句话回答 Acme 的成立时间。")], temperature=0.0, max_tokens=512)
-    assert_char_length(resp.text, max_chars=30)
+    assert_char_length(resp.text, max_chars=30)  # 字符口径（len(text)），对中文逐字计数更直观
 
 
 @test(
@@ -51,7 +51,7 @@ async def min_chars(ctx: TestContext) -> None:
     ])
     resp = await client.generate(
         [Message.user("请详细说明 Acme 的退货政策，至少 50 个字符。")], temperature=0.0, max_tokens=512)
-    assert_char_length(resp.text, min_chars=50)
+    assert_char_length(resp.text, min_chars=50)  # 下限校验只保底不保质量，常与关键词断言配合使用
 
 
 @test(
@@ -66,12 +66,12 @@ async def min_chars(ctx: TestContext) -> None:
 async def token_limit(ctx: TestContext) -> None:
     """断言：resp.usage.completion_tokens ≤ 请求的 max_tokens。"""
     client = scripted_or_real(ctx, rules=[
-        MockRule(match="50 字", reply="退货政策为 7 天无理由退货，退款 3-5 个工作日到账。"),
+        MockRule(match="50 字", reply="退货政策为 7 天无理由退货，退款 3-5 个工作日到账。"),  # 回复短于 32 token 上限，离线可稳定通过
     ])
-    max_tokens = 32
+    max_tokens = 32  # 用较小上限制造张力：mock 回复简短，真实模型需真正收敛在 32 token 内
     resp = await client.generate(
         [Message.user("请用不超过 50 字回答 Acme 的退货政策。")],
         temperature=0.0, max_tokens=max_tokens,
     )
     assert resp.usage.completion_tokens <= max_tokens, \
-        "输出 token {} 超过上限 {}".format(resp.usage.completion_tokens, max_tokens)
+        "输出 token {} 超过上限 {}".format(resp.usage.completion_tokens, max_tokens)  # usage 由 provider 回填；mock 按估算、真实 provider 以 API 返回为准

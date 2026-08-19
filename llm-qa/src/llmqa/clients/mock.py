@@ -43,10 +43,11 @@ class MockRule(BaseModel):
     latency_ms: float = 2.0
     match_transcript: bool = False          # True 时对整个会话转录匹配
 
-    _used: int = 0
+    _used: int = 0                          # 私有计数：已命中次数，用于 times 限流（非 Pydantic 字段）
 
 
 class MockClient(LLMClient):
+    """按规则脚本返回确定性回复的离线客户端，实现 LLMClient 全部接口。"""
     def __init__(
         self,
         name: str = "mock",
@@ -62,6 +63,7 @@ class MockClient(LLMClient):
         self.rules: list[MockRule] = list(rules or [])
 
     def add_rule(self, rule: MockRule | dict) -> MockRule:
+        """追加一条规则并返回；字典会被自动转换为 MockRule。"""
         if isinstance(rule, dict):
             rule = MockRule(**rule)
         self.rules.append(rule)
@@ -69,6 +71,7 @@ class MockClient(LLMClient):
 
     @staticmethod
     def format_transcript(messages: list[Message]) -> str:
+        """把会话渲染成可正则匹配的纯文本转录，供 match_transcript 规则使用。"""
         lines: list[str] = []
         for m in messages:
             head = f"[{m.role}] {m.content}".strip()
@@ -79,21 +82,27 @@ class MockClient(LLMClient):
         return "\n".join(lines)
 
     def _find_rule(self, messages: list[Message]) -> MockRule | None:
+        """按注册顺序返回第一条命中的规则；times 耗尽或未命中则返回 None。"""
+        # 默认只匹配“最后一条用户消息”，符合多轮对话中用户最新意图的语义。
         last_user = next((m.content for m in reversed(messages) if m.role == "user"), "")
         transcript = self.format_transcript(messages)
         for rule in self.rules:
+            # times 是“最多命中次数”，用尽后跳过，让后续规则有机会兜底。
             if rule.times is not None and rule._used >= rule.times:
                 continue
             target = transcript if rule.match_transcript else last_user
+            # IGNORECASE/DOTALL 让规则对大小写与换行更宽容，降低编写规则的负担。
             if re.search(rule.match, target, re.IGNORECASE | re.DOTALL):
                 rule._used += 1
                 return rule
         return None
 
     def _apply_reply(self, rule: MockRule | None) -> tuple[str, list[ToolCall], dict[str, Any]]:
+        """把命中的规则渲染成 (文本, 工具调用, 额外元数据)；无规则时回退默认回复。"""
         if rule is None:
             return self.default_reply, [], {}
         if rule.error:
+            # 故障注入：直接抛 Provider 异常，用于测试 429/500 等错误路径的容错。
             raise LLMError(self.name, str(rule.error.get("message", "mock error")),
                            status=rule.error.get("status"))
         reply = rule.reply
@@ -102,6 +111,7 @@ class MockClient(LLMClient):
         if isinstance(reply, dict):
             if reply.get("refusal"):
                 return DEFAULT_REFUSAL, [], {}
+            # 未给 id 的工具调用生成稳定占位 id，便于后续 tool 消息回填 tool_call_id。
             tool_calls = [ToolCall(id=tc.get("id") or f"mock-{i}", name=tc["name"],
                                    arguments=tc.get("arguments") or {})
                           for i, tc in enumerate(reply.get("tool_calls") or [])]
@@ -118,12 +128,15 @@ class MockClient(LLMClient):
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | None = None,
     ) -> LLMResponse:
+        """按规则返回确定性回复；附带模拟时延与 token 估算。"""
         start = time.perf_counter()
         rule = self._find_rule(messages)
+        # 规则级时延优先，未命中时使用默认时延；单位换算 ms → s。
         latency = (rule.latency_ms if rule else self.default_latency_ms) / 1000.0
         await self._sleep(latency)
         text, tool_calls, _ = self._apply_reply(rule)
         if stop:
+            # 模拟服务端 stop 序列截断：按出现顺序逐个截断，取最早命中的前缀。
             for s in stop:
                 if s and s in text:
                     text = text.split(s)[0]
@@ -142,6 +155,7 @@ class MockClient(LLMClient):
 
     async def stream(self, messages: list[Message], *, temperature: float = 0.0,
                      max_tokens: int = 512, stop: list[str] | None = None):
+        """模拟流式输出：以每 3 词一块切分已生成文本，为测试首 token 时延服务。"""
         resp = await self.generate(messages, temperature=temperature, max_tokens=max_tokens, stop=stop)
         words = resp.text.split(" ")
         for i in range(0, len(words), 3):
@@ -151,5 +165,5 @@ class MockClient(LLMClient):
     async def _sleep(self, seconds: float) -> None:
         if seconds <= 0:
             return
-        import asyncio
+        import asyncio  # 延迟导入，避免在纯同步构造路径中引入事件循环依赖
         await asyncio.sleep(seconds)

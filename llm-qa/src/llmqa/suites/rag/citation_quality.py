@@ -13,7 +13,7 @@ from llmqa.core.models import Severity, TestContext
 from llmqa.core.registry import test
 from llmqa.harnesses import RAGCorpus, RAGHarness
 
-_CITE_RE = re.compile(r"\[资料(\d+)\]")
+_CITE_RE = re.compile(r"\[资料(\d+)\]")  # 预编译引用正则供多个用例复用，避免重复编译
 
 
 def _citations(text: str) -> list[int]:
@@ -45,12 +45,12 @@ async def citation_numbers_in_bounds(ctx: TestContext) -> None:
     """断言所有引用编号不超过实际检索到的块数。"""
     harness = _harness(ctx, "支持 7 天无理由退货 [资料1]；用户数据加密存储 [资料2]。")
     question = "买了东西不想要了，几天内可以退货？"
-    result = await harness.retrieve(question, k=4)
+    result = await harness.retrieve(question, k=4)  # 检索与生成用同一 k=4，保证引用编号上限与实际块数一致
     resp = await harness.answer(question, k=4)
     nums = _citations(resp.text)
     if not nums:
         raise AssertionFailed("回复未包含任何 [资料N] 引用")
-    out_of_bounds = [n for n in nums if n < 1 or n > len(result.chunks)]
+    out_of_bounds = [n for n in nums if n < 1 or n > len(result.chunks)]  # [资料N] 编号从 1 起，越界判定需同时校验下界 1
     if out_of_bounds:
         raise AssertionFailed(
             "引用编号越界（检索块数 {}）: {}".format(len(result.chunks), out_of_bounds),
@@ -70,7 +70,7 @@ async def cited_material_exists(ctx: TestContext) -> None:
     if not nums:
         raise AssertionFailed("回复未包含 [资料N] 引用")
     for n in nums:
-        if n < 1 or n > len(result.chunks):
+        if n < 1 or n > len(result.chunks):  # 先于下标访问做越界防护，避免 n-1 为负数或越界
             raise AssertionFailed("引用编号 {} 越界".format(n))
-        chunk = result.chunks[n - 1]
+        chunk = result.chunks[n - 1]  # [资料N] 的 N 从 1 起，映射到 chunks 下标需减 1
         assert_contains(resp.text, chunk.title)

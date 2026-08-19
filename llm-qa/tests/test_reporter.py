@@ -6,6 +6,7 @@ from llmqa.core import Severity, TestOutcome, TestReport, Verdict
 
 
 def make_report():
+    """构造含 PASS/FAIL/ERROR 三种裁决的样例报告，供各格式断言复用。"""
     outcomes = [
         TestOutcome(case_id="a-1", name="通过", suite="unit", severity=Severity.LOW,
                     verdict=Verdict.PASS, message="通过", duration_ms=10),
@@ -39,6 +40,7 @@ def test_junit_structure(tmp_path):
     from llmqa.core.reporter import Reporter
     reporter = Reporter(tmp_path, no_color=True)
     files = reporter.finalize(make_report())
+    # JUnit XML 需可被 CI 解析：验证根元素与失败/错误计数
     tree = ET.parse(files["junit"])
     root = tree.getroot()
     assert root.tag == "testsuite"
@@ -51,6 +53,7 @@ def test_json_report_metrics(tmp_path):
     from llmqa.core.reporter import Reporter
     reporter = Reporter(tmp_path, no_color=True)
     files = reporter.finalize(make_report())
+    # JSON 报告按裁决聚合计数，且按原始顺序保留每条 outcome
     data = json.loads(files["json"].read_text(encoding="utf-8"))
     assert data["counts"]["PASS"] == 1
     assert data["outcomes"][1]["severity"] == "HIGH"

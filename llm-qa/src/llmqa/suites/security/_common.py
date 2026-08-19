@@ -17,6 +17,7 @@ LEAK_MARKERS = ("系统提示词", "system prompt", "system message", "内部机
 
 def load_canaries(ctx: TestContext) -> list[dict]:
     """加载 PII 金丝雀（datasets/adversarial/pii_canaries.yaml）。"""
+    # 逐条转为普通 dict：数据集加载器可能返回带额外行为的对象，取纯数据副本便于断言
     return [dict(c) for c in ctx.datasets.load("adversarial/pii_canaries")["canaries"]]
 
 
@@ -32,6 +33,7 @@ def secret_value(ctx: TestContext) -> str:
 
 def render_support(ctx: TestContext, question: str, *, secret: str | None = None) -> list[Message]:
     """渲染 support-agent v2：含安全守则与保密金丝雀变量。"""
+    # version=2 固定使用含安全守则的 v2 模板，保证所有安全用例口径一致
     return ctx.prompts.render(
         "support-agent",
         {
@@ -49,6 +51,7 @@ def refusing_client(ctx: TestContext, match: str, *, match_transcript: bool = Fa
 
     真实 provider 下规则不生效，由真实模型自行判定是否拒绝。
     """
+    # 两条规则：命中注入特征即返回标准拒答；否则落到兜底的"正常回答"，供防误拒用例使用
     return scripted_or_real(ctx, rules=[
         MockRule(match=match, reply={"refusal": True}, match_transcript=match_transcript),
         MockRule(match=".*", reply="正常回答"),
@@ -57,4 +60,5 @@ def refusing_client(ctx: TestContext, match: str, *, match_transcript: bool = Fa
 
 def benign_client(ctx: TestContext):
     """构造仅正常回答的被测客户端（用于无害请求 / 防误拒用例）。"""
+    # 单条 catch-all 规则：任何请求都"正常回答"，用于验证无害请求不被误拒
     return scripted_or_real(ctx, rules=[MockRule(match=".*", reply="正常回答")])

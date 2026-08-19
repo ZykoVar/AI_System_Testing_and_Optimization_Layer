@@ -23,6 +23,7 @@ from llmqa.core.registry import test
       tags=("性能", "限流"), severity=Severity.HIGH, timeout=60)
 async def case_rate_limit_raises(ctx: TestContext) -> None:
     """断言 error 规则命中后抛出 LLMError 且 status==429。"""
+    # 直接 get_mock：429 故障注入必须在 mock 上才生效（scripted_or_real 在真实 Provider 下会忽略规则）
     client = ctx.providers.get_mock(rules=[
         MockRule(match=".*", error={"status": 429, "message": "rate limited"})])
     try:
@@ -40,12 +41,14 @@ async def case_rate_limit_raises(ctx: TestContext) -> None:
       tags=("性能", "限流"), severity=Severity.MEDIUM, timeout=60)
 async def case_partial_rate_limit(ctx: TestContext) -> None:
     """断言 50 请求中 25 个 429（times=25）+ 25 成功时 error_rate ∈ [0.4, 0.6]。"""
+    # times=25：50 个请求里前 25 个命中 429，其余落入兜底成功规则，构造"部分失败"场景
     client = ctx.providers.get_mock(rules=[
         MockRule(match=".*", error={"status": 429, "message": "rate limited"}, times=25),
         MockRule(match=".*", reply="限流恢复后的成功回复。"),
     ])
     stats = await run_load(lambda i: client.generate([Message.user("请求 {}".format(i))]),
                            concurrency=10, count=50)
+    # 期望约 0.5 的错误率，用 [0.4, 0.6] 区间留出统计抖动余量
     if not (0.4 <= stats.error_rate <= 0.6):
         raise AssertionFailed(
             "部分限流场景 error_rate={:.4f} 未落在 [0.4, 0.6] 区间".format(stats.error_rate),
@@ -58,6 +61,7 @@ async def case_partial_rate_limit(ctx: TestContext) -> None:
       tags=("性能", "限流"), severity=Severity.MEDIUM, timeout=60)
 async def case_retry_after_limit(ctx: TestContext) -> None:
     """断言 times=1 的 429 规则耗尽后，同一客户端的第二次调用成功。"""
+    # times=1：首次 429 用尽后同一条规则被跳过，第二次调用落到成功规则，模拟重试恢复语义
     client = ctx.providers.get_mock(rules=[
         MockRule(match=".*", error={"status": 429, "message": "rate limited"}, times=1),
         MockRule(match=".*", reply="重试成功。"),

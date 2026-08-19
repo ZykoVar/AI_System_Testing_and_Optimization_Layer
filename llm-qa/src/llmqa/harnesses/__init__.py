@@ -21,6 +21,7 @@ from llmqa.harnesses.rag import (
     tokenize,
 )
 
+# 仅重导出测试可直接使用的公共类型；实现细节（BM25 内部方法等）保持模块内私有。
 __all__ = [
     "AgentHarness", "AgentTrace", "AgentStep", "Tool", "ToolResult",
     "AgentAbortError", "LoopDetected", "BudgetExceeded", "ToolPolicyViolation",

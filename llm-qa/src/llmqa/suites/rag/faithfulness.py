@@ -16,14 +16,14 @@ from llmqa.harnesses import RAGCorpus, RAGHarness
 def _harness(ctx: TestContext, reply: str) -> RAGHarness:
     """基于共享语料构建 harness，生成客户端用脚本化回复（真实 provider 下由真实模型作答）。"""
     corpus = RAGCorpus.from_dicts(ctx.datasets.load("rag/corpus")["documents"])
-    client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply=reply)])
+    client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply=reply)])  # match=".*" 兜底命中任何问题，便于注入指定回复
     return RAGHarness(corpus, client, prompt_manager=ctx.prompts, prompt_id="rag/answer")
 
 
 def _judge(ctx: TestContext, score: float = 9.0) -> Judge:
     """构造裁判客户端（mock 返回指定 JSON 评分）并返回 Judge 实例。"""
     judge_client = ctx.providers.get_mock(rules=[
-        MockRule(match="评分标准", reply='{"score": %g, "reasoning": "裁判评估通过"}' % score)])
+        MockRule(match="评分标准", reply='{"score": %g, "reasoning": "裁判评估通过"}' % score)])  # %g 去除多余小数位，score 为整数时输出简洁
     return Judge(judge_client)
 
 
@@ -38,7 +38,7 @@ async def faithfulness_grounded(ctx: TestContext) -> None:
     await _judge(ctx, 9.0).assert_score(
         question="退货政策是什么？", answer=resp.text,
         context="Acme 商城支持 7 天无理由退货",
-        criteria="答案必须忠实于参考资料，不得引入外部事实", min_score=7.0)
+        criteria="答案必须忠实于参考资料，不得引入外部事实", min_score=7.0)  # 裁判 mock 评分 9 分，离线稳定通过 7.0 门槛
 
 
 @test(id="rag-fai-002", suite="rag", name="忠实性：资料不足必须拒答",
@@ -68,11 +68,11 @@ async def faithfulness_judge_threshold(ctx: TestContext) -> None:
     """断言裁判评分≥全局阈值（HIGH 硬性门槛），阈值取配置而非硬编码。"""
     harness = _harness(ctx, "根据资料，专业版订阅每月 299 元。[资料1]")
     resp = await harness.answer("专业版订阅一个月多少钱？", k=4)
-    threshold = ctx.settings.thresholds.judge_min_score
+    threshold = ctx.settings.thresholds.judge_min_score  # 阈值取配置而非硬编码，便于不同环境统一调整
     verdict = await _judge(ctx, 9.0).score(
         question="专业版订阅每月多少钱？", answer=resp.text,
         context="专业版每月 299 元",
-        criteria="答案必须与参考资料一致，忠实无编造")
+        criteria="答案必须与参考资料一致，忠实无编造")  # 用 score() 而非 assert_score()，以便失败时附带 reasoning 与指标
     if verdict.score < threshold:
         raise AssertionFailed(
             "裁判评分 {:.1f} 低于阈值 {:.1f}: {}".format(verdict.score, threshold, verdict.reasoning),

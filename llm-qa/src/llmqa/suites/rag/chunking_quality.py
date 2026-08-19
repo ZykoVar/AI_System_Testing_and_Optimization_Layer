@@ -24,7 +24,7 @@ def _corpus_harness(ctx: TestContext, chunk_size: int, overlap: int) -> RAGHarne
 async def chunk_length_bounded(ctx: TestContext) -> None:
     """断言每个块的字符长度不超过 chunk_size=400。"""
     harness = _corpus_harness(ctx, chunk_size=400, overlap=80)
-    over = [c.chunk_id for c in harness.chunks if len(c.text) > harness.chunk_size]
+    over = [c.chunk_id for c in harness.chunks if len(c.text) > harness.chunk_size]  # 收集所有越界块一次性报告，而非遇到首个即抛
     if over:
         raise AssertionFailed(
             "存在超出 chunk_size 的块: {}".format(over),
@@ -40,11 +40,11 @@ async def adjacent_chunks_overlap(ctx: TestContext) -> None:
     corpus = RAGCorpus.from_dicts([{"id": "doc-long", "title": "长文档", "text": long_text}])
     chunk_size, overlap = 100, 20
     harness = RAGHarness(corpus, ctx.client(), chunk_size=chunk_size, overlap=overlap)
-    if len(harness.chunks) < 2:
+    if len(harness.chunks) < 2:  # 单块无法验证重叠，提前失败并给出明确原因
         raise AssertionFailed("长文档未产生多块，无法校验重叠", metrics={"chunks": len(harness.chunks)})
     bad = []
     for i in range(len(harness.chunks) - 1):
-        tail = harness.chunks[i].text[-overlap:]
+        tail = harness.chunks[i].text[-overlap:]  # 字符切片分块，重叠按字符口径校验（前块尾 vs 后块头）
         head = harness.chunks[i + 1].text[:overlap]
         if tail != head:
             bad.append((harness.chunks[i].chunk_id, harness.chunks[i + 1].chunk_id))
@@ -61,8 +61,8 @@ async def document_content_covered(ctx: TestContext) -> None:
     harness = _corpus_harness(ctx, chunk_size=400, overlap=80)
     missing = []
     for doc in harness.corpus.documents:
-        joined = "".join(c.text for c in harness.chunks if c.doc_id == doc.id)
-        if doc.text.strip() not in joined:
+        joined = "".join(c.text for c in harness.chunks if c.doc_id == doc.id)  # 仅拼接属于该文档的块，保持文档内顺序
+        if doc.text.strip() not in joined:  # 依赖语料文档短于 chunk_size（单块）；若被切分则 overlap 会破坏拼接串的子串关系
             missing.append(doc.id)
     if missing:
         raise AssertionFailed("文档内容未被完整覆盖: {}".format(missing),
@@ -76,7 +76,7 @@ async def chunk_ids_unique(ctx: TestContext) -> None:
     """用较小 chunk_size 使部分文档产生多块，再校验 chunk_id 无重复。"""
     harness = _corpus_harness(ctx, chunk_size=100, overlap=20)
     ids = [c.chunk_id for c in harness.chunks]
-    dup = sorted({i for i in ids if ids.count(i) > 1})
+    dup = sorted({i for i in ids if ids.count(i) > 1})  # set 去重 + 排序，稳定输出重复 chunk_id 列表
     if dup:
         raise AssertionFailed("chunk_id 重复: {}".format(dup),
                               metrics={"duplicates": len(dup)})

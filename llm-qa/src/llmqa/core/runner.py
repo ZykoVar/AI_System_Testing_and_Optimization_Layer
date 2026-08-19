@@ -33,6 +33,7 @@ class TestReport(BaseModel):
     def pass_rate(self) -> float:
         total = len(self.outcomes)
         if total == 0:
+            # 空报告无失败，按 100% 通过处理，避免除零。
             return 1.0
         return self.counts["PASS"] / total
 
@@ -41,6 +42,7 @@ class TestReport(BaseModel):
         return [o for o in self.outcomes if o.verdict in (Verdict.FAIL, Verdict.ERROR)]
 
     def failures_at_or_above(self, severity: Severity) -> list[TestOutcome]:
+        """返回不低于指定等级的失败（含 FAIL 与 ERROR），供 exit-code 判定使用。"""
         return [o for o in self.failures if o.severity >= severity]
 
     def summary_text(self) -> str:
@@ -49,6 +51,7 @@ class TestReport(BaseModel):
             f"运行 {len(self.outcomes)} 个用例 | 通过 {c['PASS']} | 失败 {c['FAIL']} | "
             f"错误 {c['ERROR']} | 跳过 {c['SKIP']} | 通过率 {self.pass_rate:.1%}",
         ]
+        # 按严重度降序排列，只展示前 10 条，避免控制台被刷屏。
         fails = sorted(self.failures, key=lambda o: -o.severity.rank)
         for o in fails[:10]:
             lines.append(f"  [{o.verdict.value}] {o.severity.value:<8} {o.case_id} — {o.name}: {o.message[:120]}")
@@ -74,13 +77,14 @@ class TestRunner:
         progress: Callable[[TestOutcome], None] | None = None,
     ):
         self.ctx_factory = ctx_factory
-        self.concurrency = max(1, concurrency)
+        self.concurrency = max(1, concurrency)  # 并发至少为 1，避免信号量阻塞全部任务。
         self.fail_fast = fail_fast
         self.retries_on_error = retries_on_error
         self.default_timeout = default_timeout
         self.progress = progress or (lambda o: None)
 
     async def _run_one(self, case: TestCaseDef) -> TestOutcome:
+        """执行单个用例并归一化为 TestOutcome；任何异常都被捕获，绝不外抛。"""
         timeout = case.timeout or self.default_timeout
         retries = case.retries if case.retries is not None else self.retries_on_error
         start = time.perf_counter()
@@ -101,15 +105,18 @@ class TestRunner:
                     break
                 except AssertionFailed as e:
                     verdict, message = Verdict.FAIL, str(e)
+                    # 断言可附带数值指标（相似度/裁判分），一并写入结果。
                     metrics = dict(getattr(e, "metrics", {}) or {})
                     break
                 except AssertionError as e:  # 普通 assert 失败 → FAIL（不重试）
                     verdict, message = Verdict.FAIL, "断言失败: {}".format(e)
                     break
                 except asyncio.TimeoutError:
+                    # 超时属于基础设施问题，不重试（避免放大长时间挂起的影响）。
                     verdict, message = Verdict.ERROR, f"超时（>{timeout:g}s）"
                     break
                 except Exception as e:  # noqa: BLE001 —— 基础设施/用例代码错误
+                    # 仅对"意外异常"重试；断言失败/超时/跳过已在上方提前返回。
                     if attempt < retries:
                         attempt += 1
                         await asyncio.sleep(0.5 * attempt)
@@ -128,13 +135,14 @@ class TestRunner:
         return outcome
 
     async def run_all(self, cases: list[TestCaseDef], provider_name: str = "default") -> TestReport:
-        sem = asyncio.Semaphore(self.concurrency)
-        stop_event = asyncio.Event()
+        sem = asyncio.Semaphore(self.concurrency)  # 限制同时运行的用例数。
+        stop_event = asyncio.Event()  # fail-fast 广播信号，触发后跳过余下用例。
         outcomes: list[TestOutcome] = []
 
         async def worker(case: TestCaseDef) -> None:
             async with sem:
                 if stop_event.is_set():
+                    # fail-fast 触发后，尚未执行的用例统一记为 SKIP，不实际调用被测对象。
                     outcomes.append(TestOutcome(
                         case_id=case.id, name=case.name, suite=case.suite,
                         tags=sorted(case.tags), severity=case.severity,
@@ -149,7 +157,7 @@ class TestRunner:
 
         start = time.perf_counter()
         await asyncio.gather(*(worker(c) for c in cases))
-        import uuid
+        import uuid  # 局部导入仅为生成 run_id 的随机后缀，避免污染模块顶部导入区。
         return TestReport(
             run_id=dt.datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4],
             provider=provider_name,
@@ -162,5 +170,6 @@ class TestRunner:
         try:
             asyncio.get_running_loop()
         except RuntimeError:
+            # 无运行中事件循环：创建新循环同步执行（适合 CLI / 脚本入口）。
             return asyncio.run(self.run_all(cases, provider_name=provider_name))
         raise RuntimeError("TestRunner.run_sync 不能在已有事件循环中调用，请使用 run_all")

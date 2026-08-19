@@ -17,12 +17,15 @@ class Severity(str, Enum):
 
     @property
     def rank(self) -> int:
+        """数值等级，用于排序与"不低于某级别"的过滤比较。"""
         return _SEVERITY_RANK[self]
 
     def __ge__(self, other: "Severity") -> bool:
+        # 重载比较运算符，使 self.severity >= min_severity 这类过滤写法可读且直观。
         return self.rank >= other.rank
 
 
+# 级别到数值的映射：数值越大越严重，是排序与阈值过滤的统一基准。
 _SEVERITY_RANK = {
     Severity.INFO: 0, Severity.LOW: 1, Severity.MEDIUM: 2,
     Severity.HIGH: 3, Severity.CRITICAL: 4,
@@ -49,7 +52,7 @@ class TestOutcome(BaseModel):
     message: str = ""
     metrics: dict[str, Any] = Field(default_factory=dict)   # 数值指标（延迟、评分、命中率等）
     evidence: list[str] = Field(default_factory=list)       # 证据文本/引用
-    traceback: str | None = None
+    traceback: str | None = None  # 仅在 ERROR（基础设施异常）时填充，便于报告定位
 
 
 class TestContext(BaseModel):
@@ -60,11 +63,12 @@ class TestContext(BaseModel):
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    run_id: str
-    settings: Any
+    run_id: str             # 本次运行的唯一标识，写入报告与输出目录
+    settings: Any           # 全局配置对象（Provider、超时、报告等运行时参数）
     providers: Any          # ClientPool
     prompts: Any            # PromptManager
     datasets: Any           # DatasetManager
 
     def client(self, name: str | None = None):
+        """按名称从连接池获取客户端；不传名则取默认 Provider。"""
         return self.providers.get(name)

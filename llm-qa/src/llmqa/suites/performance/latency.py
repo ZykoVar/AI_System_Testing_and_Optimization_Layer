@@ -34,6 +34,7 @@ async def case_p95_latency(ctx: TestContext) -> None:
     client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="延迟测试回复。")])
     stats = await run_load(lambda i: client.generate([Message.user(payload)]),
                            concurrency=8, count=50)
+    # 先拦截请求错误：有错误时延迟分位已不可信，直接失败而非继续比较阈值
     if stats.errors:
         raise AssertionFailed("压测出现错误: {}".format(stats.error_messages[:3]),
                               metrics={"errors": stats.errors, "error_rate": stats.error_rate})
@@ -67,8 +68,10 @@ async def _measure_ttft(client, text: str) -> float | None:
     """测量单次流式请求的首 token 延迟（毫秒）；无文本增量返回 None。"""
     start = time.perf_counter()
     async for chunk in client.stream([Message.user(text)]):
+        # 首个非空文本增量即视为"首 token 到达"，返回其耗时（毫秒）
         if chunk.text_delta:
             return (time.perf_counter() - start) * 1000
+        # 流提前结束而无文本增量时中断：返回 None 交由调用方过滤
         if chunk.finish_reason is not None:
             break
     return None
@@ -81,12 +84,14 @@ async def case_ttft(ctx: TestContext) -> None:
     """断言 30 次流式请求首 token 延迟的 P95 < thresholds.ttft_p95_ms。"""
     payload = _short_payload(ctx)
     client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="流式首 token 测试回复。")])
+    # 用信号量把并发流式请求限制在 8：既压出并发效果，又避免瞬时打满连接
     sem = asyncio.Semaphore(8)
 
     async def one(i: int) -> float | None:
         async with sem:
             return await _measure_ttft(client, payload)
 
+    # 过滤掉无文本增量的 None 样本；若全部为空，说明流式实现未产出任何文本，直接判失败
     ttfts = [t for t in await asyncio.gather(*(one(i) for i in range(30))) if t is not None]
     if not ttfts:
         raise AssertionFailed("未能测得任何首 token 延迟（流式无文本增量）")

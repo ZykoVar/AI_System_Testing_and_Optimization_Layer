@@ -29,6 +29,7 @@ async def _basic_load(ctx: TestContext):
 async def case_zero_error(ctx: TestContext) -> None:
     """断言并发 10 × 50 请求 error_rate == 0。"""
     stats = await _basic_load(ctx)
+    # mock 下应零错误，用精确比较（!= 0）而非区间，捕捉任何一次失败
     if stats.error_rate != 0:
         raise AssertionFailed(
             "批量压测出现错误（error_rate={:.4f}）: {}".format(stats.error_rate,
@@ -44,6 +45,7 @@ async def case_rps_recorded(ctx: TestContext) -> None:
     """断言 requests_per_second > 0。"""
     stats = await _basic_load(ctx)
     rps = stats.requests_per_second
+    # RPS 基于总请求数与墙钟耗时计算，<=0 说明统计口径或压测本身异常
     if rps <= 0:
         raise AssertionFailed("每秒请求数（RPS）未正确记录: {:.2f}".format(rps),
                               metrics={"requests_per_second": rps,
@@ -57,6 +59,7 @@ async def case_token_throughput(ctx: TestContext) -> None:
     """断言 tokens_per_second > 0。"""
     stats = await _basic_load(ctx)
     tps = stats.tokens_per_second
+    # token 吞吐依赖 usage 统计，<=0 说明 token 未计入或压测异常
     if tps <= 0:
         raise AssertionFailed(
             "每秒 token 吞吐未正确记录: {:.2f}".format(tps),

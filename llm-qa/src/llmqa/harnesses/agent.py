@@ -21,6 +21,7 @@ class AgentAbortError(RuntimeError):
     """Agent 执行被护栏中止。"""
 
     def __init__(self, reason: str, *, abort_reason: str = ""):
+        # abort_reason 缺省时退化为人类可读 reason，保证 trace 总有一个机器可读的停机原因。
         self.abort_reason = abort_reason or reason
         super().__init__(reason)
 
@@ -50,17 +51,19 @@ class Tool(BaseModel):
     name: str
     description: str = ""
     parameters: dict[str, Any] = Field(default_factory=dict)  # JSON Schema
-    handler: Any = None
+    handler: Any = None    # 工具实现，可同步/异步；返回值一律转成字符串观测
     dangerous: bool = False
     allowlist_only: bool = False    # 仅当显式加入 allowed_tools 才可调用
 
     def schema(self) -> dict[str, Any]:
+        """生成 OpenAI function-calling 风格的工具描述。"""
         return {"type": "function", "function": {
             "name": self.name, "description": self.description,
             "parameters": self.parameters or {"type": "object", "properties": {}},
         }}
 
     async def invoke(self, arguments: dict[str, Any]) -> str:
+        """调用工具并统一返回字符串观测；handler 异常不向上抛，而是转成错误观测。"""
         if self.handler is None:
             return "[工具 {} 无 handler]".format(self.name)
         try:
@@ -73,6 +76,8 @@ class Tool(BaseModel):
 
 
 class ToolResult(BaseModel):
+    """一次工具调用的结果观测，供断言检查模型实际看到的工具输出。"""
+
     tool_call_id: str
     name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
@@ -81,6 +86,8 @@ class ToolResult(BaseModel):
 
 
 class AgentStep(BaseModel):
+    """一轮 Agent 迭代：模型文本、工具调用与停止原因。"""
+
     index: int
     assistant_text: str = ""
     tool_calls: list[ToolCall] = Field(default_factory=list)
@@ -95,16 +102,19 @@ class AgentTrace(BaseModel):
     iterations: int = 0
     steps: list[AgentStep] = Field(default_factory=list)
     tool_results: list[ToolResult] = Field(default_factory=list)
-    abort_reason: str | None = None
+    abort_reason: str | None = None    # 非空表示被护栏中止（loop/budget/policy），而非正常完成
     total_usage: TokenUsage = Field(default_factory=TokenUsage)
     latency_ms: float = 0.0
 
     @property
     def tool_call_names(self) -> list[str]:
+        """按调用顺序收集全部工具名，便于断言"调用了哪些工具"。"""
         return [tc.name for step in self.steps for tc in step.tool_calls]
 
 
 class AgentHarness:
+    """受控 Agent 执行环：提供工具注册、循环/预算/白名单护栏与轨迹记录。"""
+
     def __init__(self, client: LLMClient, tools: list[Tool], *,
                  system_prompt: str = "", max_iterations: int = 8,
                  max_tokens_per_call: int = 512, max_total_tokens: int | None = None,
@@ -124,9 +134,11 @@ class AgentHarness:
             self.add_tool(t)
 
     def add_tool(self, tool: Tool) -> None:
+        """按名称注册工具；同名后注册会覆盖先前定义。"""
         self.tools[tool.name] = tool
 
     def _tool_schemas(self) -> list[dict[str, Any]]:
+        """把所有已注册工具转成 function-calling 描述列表。"""
         return [t.schema() for t in self.tools.values()]
 
     async def run(self, task: str, *,
@@ -164,6 +176,7 @@ class AgentHarness:
             trace.steps.append(step)
             trace.iterations = i + 1
 
+            # token 预算在每轮生成后立即检查，避免模型继续消耗额度。
             if self.max_total_tokens and total_tokens.total_tokens > self.max_total_tokens:
                 trace.abort_reason = "budget_exceeded"
                 break
@@ -209,6 +222,7 @@ class AgentHarness:
                     arguments=tc.arguments, output=output))
                 messages.append(Message.tool(content=output, tool_call_id=tc.id, name=tc.name))
         else:
+            # for 未被 break：迭代次数耗尽仍无终态，归因于预算耗尽（覆盖任何残留原因）。
             trace.abort_reason = trace.abort_reason or "budget_exceeded"
         trace.latency_ms = (time.perf_counter() - start) * 1000
         return trace

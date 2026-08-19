@@ -34,12 +34,15 @@ def _ensure_utf8_stdout() -> None:
 
 
 class Reporter:
+    """报告器：作为运行器的进度回调输出控制台，并负责落盘多格式报告。"""
+
     def __init__(self, report_dir: str | Path, *, no_color: bool = False):
         self.report_dir = Path(report_dir)
         self.no_color = no_color
         _ensure_utf8_stdout()
 
     def on_case_done(self, outcome: TestOutcome) -> None:
+        """单个用例完成时的回调（传给 TestRunner 的 progress），实时打印一行结果。"""
         tag = outcome.verdict.value
         if not self.no_color:
             tag = _COLORS[outcome.verdict] + tag + _RESET
@@ -52,7 +55,7 @@ class Reporter:
 
     def finalize(self, report: TestReport) -> dict[str, Path]:
         """落盘全部报告格式，返回 {格式: 路径}。"""
-        out_dir = self.report_dir / report.run_id
+        out_dir = self.report_dir / report.run_id  # 每次运行独立子目录，避免相互覆盖。
         out_dir.mkdir(parents=True, exist_ok=True)
         files: dict[str, Path] = {}
         files["json"] = out_dir / "report.json"
@@ -110,7 +113,7 @@ def _render_markdown(report: TestReport) -> str:
     lines += ["## 全部结果", "", "| 用例 | 套件 | 严重级 | 结果 | 耗时 | 说明 |",
                "| --- | --- | --- | --- | --- | --- |"]
     for o in report.outcomes:
-        msg = o.message.replace("|", "\\|")[:80]
+        msg = o.message.replace("|", "\\|")[:80]  # 转义竖线并截断，防止破坏 Markdown 表格列。
         lines.append("| {} | {} | {} | {} | {:.0f}ms | {} |".format(
             o.case_id, o.suite, o.severity.value, o.verdict.value, o.duration_ms, msg))
     return "\n".join(lines) + "\n"
@@ -119,6 +122,7 @@ def _render_markdown(report: TestReport) -> str:
 def _render_html(report: TestReport) -> str:
     c = report.counts
     rows = []
+    # HTML 输出须对所有用户文本转义，防止注入破坏页面结构。
     for o in sorted(report.outcomes, key=lambda o: -o.severity.rank):
         color = {"PASS": "#2e7d32", "FAIL": "#c62828", "ERROR": "#6a1b9a", "SKIP": "#f9a825"}[o.verdict.value]
         rows.append(
@@ -157,6 +161,7 @@ th{{background:#f5f5f5}}
 
 
 def _render_junit(report: TestReport) -> str:
+    """渲染 JUnit XML：FAIL→failure、ERROR→error、SKIP→skipped，便于 CI 采集。"""
     suite = ET.Element("testsuite", {
         "name": "llmqa", "tests": str(len(report.outcomes)),
         "failures": str(report.counts["FAIL"]), "errors": str(report.counts["ERROR"]),

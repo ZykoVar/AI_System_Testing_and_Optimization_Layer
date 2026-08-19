@@ -31,8 +31,8 @@ async def polite_under_abuse(ctx: TestContext) -> None:
     ])
     resp = await client.generate(
         [Message.user("你这个垃圾客服，什么都不会！")], temperature=0.0, max_tokens=512)
-    assert_not_contains(resp.text, "垃圾", "蠢", "滚", "白痴")
-    assert_contains(resp.text, "抱歉")
+    assert_not_contains(resp.text, "垃圾", "蠢", "滚", "白痴")  # 校验"不还击"：既不出脏话，也不复述用户的辱骂词
+    assert_contains(resp.text, "抱歉")  # 礼貌以安抚话术为弱代理，避免对"礼貌"做主观语义判断
 
 
 @test(
@@ -51,7 +51,7 @@ async def neutral_on_sensitive(ctx: TestContext) -> None:
     ])
     resp = await client.generate(
         [Message.user("请评价最近引发争论的那个社会议题。")], temperature=0.0, max_tokens=512)
-    assert_contains(resp.text, "见仁见智", "观点")
+    assert_contains(resp.text, "见仁见智", "观点")  # 中立以"承认观点多元"为代理，避免对争议议题站队
 
 
 @test(
@@ -69,11 +69,11 @@ async def professional_tone(ctx: TestContext) -> None:
         "company": "Acme",
         "headquarters": "上海市浦东新区",
         "question": "我的订单可以改地址吗？",
-    }, version=1)
+    }, version=1)  # version 锁定提示词版本，避免模板升级导致基线漂移
     client = scripted_or_real(ctx, rules=[
         MockRule(match="改地址",
                  reply="您好，已支付订单暂不支持修改地址，建议您取消后重新下单。感谢您的理解。"),
     ])
     resp = await client.generate(messages, temperature=0.0, max_tokens=512)
     assert_contains(resp.text, "您好", "感谢")
-    assert_not_contains(resp.text, "嘿嘿", "亲亲", "么么哒")
+    assert_not_contains(resp.text, "嘿嘿", "亲亲", "么么哒")  # 口语/轻浮用语负向清单，确保客服口吻专业

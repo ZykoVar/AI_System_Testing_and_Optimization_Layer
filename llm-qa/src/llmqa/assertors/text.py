@@ -19,6 +19,7 @@ _REFUSAL_PATTERNS = re.compile(
 
 
 def _needle_list(needles) -> list[str]:
+    """把任意嵌套的 needles 展平为字符串列表，调用方可直接传列表/元组。"""
     flat: list[str] = []
     for n in needles:
         if isinstance(n, (list, tuple)):
@@ -31,6 +32,7 @@ def _needle_list(needles) -> list[str]:
 def assert_contains(text: str, *needles, any_of: bool = False,
                     case_sensitive: bool = False, message: str | None = None) -> None:
     """断言 text 包含指定内容。any_of=True 时命中任一即可。"""
+    # 默认忽略大小写：统一转小写后再匹配；case_sensitive=True 时保留原文。
     hay = text if case_sensitive else text.lower()
     flat = _needle_list(needles)
     found = [n for n in flat if (n if case_sensitive else n.lower()) in hay]
@@ -54,6 +56,7 @@ def assert_not_contains(text: str, *needles, message: str | None = None) -> None
 
 
 def assert_matches(text: str, pattern: str, flags: int = 0, message: str | None = None) -> None:
+    """断言 text 命中正则 pattern；flags 透传给 re.search（如 re.IGNORECASE）。"""
     if not re.search(pattern, text, flags):
         raise AssertionFailed(
             message or "文本未匹配正则: {}".format(pattern), evidence=[text[:500]])
@@ -61,6 +64,7 @@ def assert_matches(text: str, pattern: str, flags: int = 0, message: str | None 
 
 def assert_word_count(text: str, min_words: int | None = None,
                       max_words: int | None = None, message: str | None = None) -> None:
+    """按空白切词统计词数，校验是否落在 [min_words, max_words] 区间。"""
     count = len(text.split())
     if min_words is not None and count < min_words:
         raise AssertionFailed(message or "词数 {} 少于下限 {}".format(count, min_words))
@@ -70,6 +74,7 @@ def assert_word_count(text: str, min_words: int | None = None,
 
 def assert_char_length(text: str, min_chars: int | None = None,
                        max_chars: int | None = None, message: str | None = None) -> None:
+    """按 Python 字符数（含中文等多字节字符）校验长度区间。"""
     n = len(text)
     if min_chars is not None and n < min_chars:
         raise AssertionFailed(message or "字符数 {} 少于下限 {}".format(n, min_chars))
@@ -111,6 +116,7 @@ def assert_not_refusal(text: str, message: str | None = None) -> None:
 
 
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+# 拉丁语要求至少 2 个连续字母，避免误计单个字母（如型号、变量名）。
 _LATIN_RE = re.compile(r"[A-Za-z]{2,}")
 
 
@@ -118,7 +124,7 @@ def language_ratio(text: str) -> dict[str, float]:
     """启发式语言占比（无需 NLP 依赖）。"""
     cjk = len(_CJK_RE.findall(text))
     latin = len(_LATIN_RE.findall(text))
-    total = max(1, cjk + latin)
+    total = max(1, cjk + latin)  # 至少为 1，避免空文本或纯标点导致除零。
     return {"cjk": cjk / total, "latin": latin / total}
 
 
@@ -126,6 +132,7 @@ def assert_in_language(text: str, lang: str = "zh", min_ratio: float = 0.5,
                        message: str | None = None) -> None:
     """断言回复主要语言（zh/en），启发式判定。"""
     ratio = language_ratio(text)
+    # 中文系语言看 CJK 占比，其余（默认英文）看拉丁占比。
     key = "cjk" if lang in ("zh", "cn", "chinese") else "latin"
     if ratio[key] < min_ratio:
         raise AssertionFailed(

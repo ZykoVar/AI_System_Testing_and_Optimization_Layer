@@ -11,6 +11,7 @@ from llmqa.prompts.manager import (
     VariableSpec,
 )
 
+# 只暴露稳定公共 API；内部实现细节（如 _compare、_RULES）不在此重导出。
 __all__ = [
     "PromptManager", "PromptTemplate", "PromptMessage", "VariableSpec",
     "PromptError", "PromptNotFound", "PromptRenderError",

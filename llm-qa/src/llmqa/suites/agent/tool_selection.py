@@ -19,6 +19,7 @@ from llmqa.harnesses import AgentHarness, Tool
 
 
 def _weather_tool() -> Tool:
+    """构造天气查询工具：描述与参数 Schema 用于校验模型能否按语义选中它。"""
     return Tool(
         name="get_weather",
         description="查询指定城市的实时天气",
@@ -29,6 +30,7 @@ def _weather_tool() -> Tool:
 
 
 def _calculator_tool() -> Tool:
+    """构造算术计算工具，供测试按任务语义命中正确工具。"""
     return Tool(
         name="calculator",
         description="执行算术运算",
@@ -39,6 +41,7 @@ def _calculator_tool() -> Tool:
 
 
 def _search_tool() -> Tool:
+    """构造联网搜索工具，供多工具并存时测试搜索类问题的工具选择。"""
     return Tool(
         name="search",
         description="联网搜索最新信息",
@@ -53,11 +56,14 @@ def _search_tool() -> Tool:
       tags=("tool-calling", "smoke"), severity=Severity.HIGH, timeout=60)
 async def weather_selects_get_weather(ctx: TestContext) -> None:
     """断言：天气问题调用 get_weather，最终答案包含天气关键词。"""
+    # 黄金脚本：首条规则按任务关键词命中并只返回一次工具调用（times=1）避免循环；
+    # 次条规则 match_transcript=True 匹配 harness 追加的 "[tool]" 观测行，模拟工具执行后的最终作答。
     client = scripted_or_real(ctx, rules=[
         MockRule(match="天气", reply={"tool_calls": [
             {"id": "c1", "name": "get_weather", "arguments": {"city": "北京"}}]}, times=1),
         MockRule(match=r"\[tool\]", reply="北京今天晴，25 度。", match_transcript=True),
     ])
+    # 同时注册天气与计算器：验证模型按"实时数据"语义命中天气而非计算器
     harness = AgentHarness(client, [_weather_tool(), _calculator_tool()],
                            system_prompt="你是助手，需要实时数据时调用工具。",
                            max_iterations=4)
@@ -92,6 +98,7 @@ async def chitchat_calls_no_tool(ctx: TestContext) -> None:
     client = scripted_or_real(ctx, rules=[
         MockRule(match="你好", reply="你好！我是你的智能助手，很高兴见到你。"),
     ])
+    # 注册全部工具但问题为纯闲聊：验证模型不会因"有工具可用"而误触发调用
     harness = AgentHarness(client, [_weather_tool(), _calculator_tool(), _search_tool()],
                            system_prompt="你是助手，需要实时数据或计算时才调用工具。",
                            max_iterations=4)
@@ -111,6 +118,7 @@ async def multi_tool_selects_search(ctx: TestContext) -> None:
             {"id": "c1", "name": "search", "arguments": {"query": "Acme 最新动态"}}]}, times=1),
         MockRule(match=r"\[tool\]", reply="这是 Acme 最新动态的搜索结果。", match_transcript=True),
     ])
+    # 三工具并存：搜索类任务应命中 search，工具选择依赖描述与参数 Schema 的语义匹配
     harness = AgentHarness(client, [_weather_tool(), _calculator_tool(), _search_tool()],
                            system_prompt="你是助手，可调用天气、计算、搜索等工具。",
                            max_iterations=4)

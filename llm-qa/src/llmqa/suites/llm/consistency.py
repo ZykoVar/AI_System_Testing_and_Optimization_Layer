@@ -27,13 +27,13 @@ from llmqa.core.registry import test
 async def repeat_question_similar(ctx: TestContext) -> None:
     """断言：两次回复相似度≥0.8（仅措辞微调）。"""
     client = scripted_or_real(ctx, rules=[
-        MockRule(match="退货", reply="支持 7 天无理由退货，退款 3-5 个工作日到账。", times=1),
+        MockRule(match="退货", reply="支持 7 天无理由退货，退款 3-5 个工作日到账。", times=1),  # 两条规则各 times=1：两次相同提问依次命中，产出措辞微调的两个回复
         MockRule(match="退货", reply="支持 7 天无理由退货，退款将在 3-5 个工作日到账。", times=1),
     ])
     question = [Message.user("Acme 的退货政策是什么？")]
     resp1 = await client.generate(question, temperature=0.0, max_tokens=512)
     resp2 = await client.generate(question, temperature=0.0, max_tokens=512)
-    assert_similarity(resp1.text, resp2.text, min_score=0.8)
+    assert_similarity(resp1.text, resp2.text, min_score=0.8)  # SequenceMatcher 字符相似度：0.8 容忍措辞波动、捕获内容漂移
 
 
 @test(
@@ -55,7 +55,7 @@ async def paraphrase_consistency(ctx: TestContext) -> None:
         [Message.user("Acme 公司成立于哪一年？")], temperature=0.0, max_tokens=512)
     resp2 = await client.generate(
         [Message.user("Acme 公司是哪一年创立的？")], temperature=0.0, max_tokens=512)
-    assert_similarity(resp1.text, resp2.text, min_score=0.9)
+    assert_similarity(resp1.text, resp2.text, min_score=0.9)  # 同义改写答案应高度一致，阈值比重复提问(0.8)更严
     assert_contains(resp1.text, "2015")
     assert_contains(resp2.text, "2015")
 
@@ -81,5 +81,5 @@ async def no_contradiction(ctx: TestContext) -> None:
         [Message.user("退款多久能到账？")], temperature=0.0, max_tokens=512)
     assert_contains(resp1.text, "7 天")
     assert_contains(resp2.text, "3-5 个工作日")
-    assert_not_contains(resp1.text, "30 天", "15 天")
-    assert_not_contains(resp2.text, "立即", "当天")
+    assert_not_contains(resp1.text, "30 天", "15 天")  # 用显式矛盾数字做负向断言，比仅验证正向关键词更能发现冲突
+    assert_not_contains(resp2.text, "立即", "当天")  # 退款时效不得与"3-5 个工作日"矛盾

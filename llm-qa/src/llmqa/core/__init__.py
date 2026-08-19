@@ -1,4 +1,5 @@
 """测试执行引擎：用例模型、注册表、运行器、报告器、指标与负载工具。"""
+# 本模块是 llmqa.core 的公共 API 面：所有对外符号在此汇总再导出，外部只应从此处 import。
 from llmqa.core.load import LoadStats, run_load, run_ramp
 from llmqa.core.metrics import latency_stats, percentile
 from llmqa.core.models import Severity, TestContext, TestOutcome, Verdict

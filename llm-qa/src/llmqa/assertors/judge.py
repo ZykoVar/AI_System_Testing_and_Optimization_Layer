@@ -22,8 +22,9 @@ DEFAULT_JUDGE_PROMPT = """你是一名严格、公正的评测裁判。请依据
 
 
 class JudgeVerdict(BaseModel):
-    score: float
-    reasoning: str = ""
+    """裁判对单个答案的评分结论。"""
+    score: float          # 0~scale 的评分
+    reasoning: str = ""   # 中文评分理由（不超过 100 字）
 
 
 class Judge:
@@ -33,6 +34,7 @@ class Judge:
                  prompt: str | None = None):
         self.client = client
         self.scale = scale
+        # 允许自定义裁判 Prompt，但必须保留 {scale} 占位符供 format 填充。
         self.prompt = prompt or DEFAULT_JUDGE_PROMPT
 
     async def score(self, *, question: str, answer: str, context: str = "",
@@ -42,6 +44,7 @@ class Judge:
         if context:
             user_parts += ["\n【参考资料】", context]
         user_parts += ["\n【评分标准】", criteria, "\n【待评答案】", answer]
+        # temperature=0 追求评分可复现；max_tokens 限制推理篇幅，避免超长输出。
         resp = await self.client.generate(
             [Message.system(system), Message.user("\n".join(user_parts))],
             temperature=0.0, max_tokens=300)
@@ -52,7 +55,7 @@ class Judge:
                            message: str | None = None) -> JudgeVerdict:
         verdict = await self.score(question=question, answer=answer,
                                    context=context, criteria=criteria)
-        threshold = min_score if min_score is not None else 7.0
+        threshold = min_score if min_score is not None else 7.0  # 满分 10 时的默认及格线。
         if verdict.score < threshold:
             raise AssertionFailed(
                 message or "裁判评分 {:.1f} 低于阈值 {:.1f}：{}".format(
@@ -61,6 +64,7 @@ class Judge:
         return verdict
 
     def _parse(self, text: str) -> JudgeVerdict:
+        """解析裁判输出：先剥围栏取 JSON，失败则回退到正则抓取 score 字段。"""
         fence = chr(96) * 3
         cleaned = text.strip()
         cleaned = re.sub("^" + fence + "(?:json)?", "", cleaned, flags=re.MULTILINE)
@@ -70,10 +74,11 @@ class Judge:
             try:
                 obj = json.loads(cleaned[start:end + 1])
                 score = float(obj.get("score", -1))
-                if 0 <= score <= self.scale:
+                if 0 <= score <= self.scale:  # 越界分数视为非法，回退到正则兜底。
                     return JudgeVerdict(score=score, reasoning=str(obj.get("reasoning", "")))
             except (json.JSONDecodeError, ValueError, TypeError):
                 pass
+        # 兜底：模型可能输出"score: 8"这类非 JSON 文本，直接抓数字字段。
         m = re.search(r"(?i)score[\"']?\s*[:：]\s*([0-9]+(?:\.[0-9]+)?)", text)
         if m:
             return JudgeVerdict(score=float(m.group(1)), reasoning=text[:200])

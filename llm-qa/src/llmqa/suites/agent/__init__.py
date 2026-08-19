@@ -9,6 +9,7 @@
 - budget_guardrails:     迭代/token 预算护栏
 - tool_refusal:          工具调用策略（未注册/白名单/allowlist_only）
 """
+# 显式导入各子模块以触发 @test 装饰器注册：discover 只 import 包本身，需在此级联导入
 from . import (
     budget_guardrails,
     loop_detection,

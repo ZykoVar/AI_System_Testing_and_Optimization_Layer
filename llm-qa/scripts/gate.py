@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 def latest_report(reports_dir: Path) -> Path:
+    """按修改时间取最新一次运行的 report.json；无报告时以退出码 3 直接退出。"""
     candidates = sorted(reports_dir.glob("*/report.json"),
                         key=lambda p: p.stat().st_mtime, reverse=True)
     if not candidates:
@@ -20,6 +21,7 @@ def latest_report(reports_dir: Path) -> Path:
 
 
 def main() -> int:
+    """读取最新报告，按严重级分桶并返回门禁退出码（0/1/2/3）。"""
     reports_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("reports")
     report_path = latest_report(reports_dir)
     data = json.loads(report_path.read_text(encoding="utf-8"))
@@ -30,15 +32,18 @@ def main() -> int:
     medium = []
     low = []
     for o in data["outcomes"]:
+        # 只对失败/错误做门禁判定，PASS/SKIP 不参与
         if o["verdict"] not in ("FAIL", "ERROR"):
             continue
         sev = o["severity"]
+        # 严重级分桶：CRITICAL/HIGH 拦截、MEDIUM 告警、LOW 仅记录
         (critical if sev in ("CRITICAL", "HIGH") else
          medium if sev == "MEDIUM" else low).append(o)
     for o in critical:
         print("  [拦截] {} {} — {}: {}".format(o["severity"], o["case_id"], o["name"], o["message"][:100]))
     for o in medium:
         print("  [告警] {} {} — {}: {}".format(o["severity"], o["case_id"], o["name"], o["message"][:100]))
+    # 拦截优先于告警：只要有 CRITICAL/HIGH 失败即返回 1
     if critical:
         print("gate: {} 个 CRITICAL/HIGH 失败 → 拦截".format(len(critical)))
         return 1

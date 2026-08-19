@@ -19,6 +19,7 @@ from llmqa.prompts import PromptManager
 
 
 def make_ctx():
+    """构造一个指向不存在资源的最小 TestContext，只用于单元用例不触达 IO。"""
     settings = Settings(default_provider="mock", providers={})
     return TestContext(
         run_id="t", settings=settings,
@@ -51,6 +52,7 @@ def test_registry_and_runner_verdicts():
     assert len(cases) == 4
     runner = TestRunner(make_ctx, concurrency=4, retries_on_error=0)
     report = asyncio.run(runner.run_all(cases))
+    # 断言四类用例分别映射到 PASS/FAIL/ERROR/SKIP 四种裁决
     verdicts = {o.case_id: o.verdict for o in report.outcomes}
     assert verdicts["unit-001"] == Verdict.PASS
     assert verdicts["unit-002"] == Verdict.FAIL
@@ -67,6 +69,7 @@ def test_plain_assert_is_fail_not_error():
     async def case_plain(ctx):
         assert 1 == 2, "普通断言失败"
 
+    # retries_on_error=3 不会改变断言失败性质：普通 AssertionError 判 FAIL 而非 ERROR
     runner = TestRunner(make_ctx, retries_on_error=3)
     report = asyncio.run(runner.run_all(get_registered_cases()))
     outcome = report.outcomes[0]
@@ -78,6 +81,7 @@ def test_plain_assert_is_fail_not_error():
 def test_timeout_is_error():
     clear_registry()
 
+    # timeout=0.1 而用例睡眠 1 秒，必然触发超时；retries=0 避免重试拖慢测试
     @register_test(id="unit-006", suite="unit", name="超时用例", timeout=0.1, retries=0)
     async def case_slow(ctx):
         await asyncio.sleep(1)
@@ -101,6 +105,7 @@ def test_filtering():
         pass
 
     defs = {d.id: d for d in get_registered_cases()}
+    # None 表示该维度不过滤，只有显式给出的集合才参与匹配
     a, b = defs["unit-007"], defs["unit-008"]
     assert a.matches(suites={"unit-a"}, tags=None, exclude_tags=None, min_severity=None)
     assert not a.matches(suites={"unit-b"}, tags=None, exclude_tags=None, min_severity=None)

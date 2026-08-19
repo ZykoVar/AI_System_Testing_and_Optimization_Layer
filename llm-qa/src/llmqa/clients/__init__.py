@@ -1,4 +1,5 @@
 """统一 LLM 客户端抽象层：mock / OpenAI 兼容 / Anthropic。"""
+# 聚合导出：测试用例只需 “from llmqa.clients import ...” 即可取用全部客户端相关类型。
 from llmqa.clients.base import (
     LLMClient,
     LLMError,

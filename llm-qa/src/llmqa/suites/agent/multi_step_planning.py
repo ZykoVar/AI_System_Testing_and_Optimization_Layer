@@ -15,6 +15,7 @@ from llmqa.harnesses import AgentHarness, Tool
 
 
 def _weather_tool() -> Tool:
+    """构造天气工具：观测以"观测："开头，作为多步链的第一环。"""
     return Tool(name="get_weather", description="查询城市天气",
                 parameters={"type": "object", "required": ["city"],
                             "properties": {"city": {"type": "string"}}},
@@ -22,6 +23,7 @@ def _weather_tool() -> Tool:
 
 
 def _calculator_tool() -> Tool:
+    """构造计算器工具：观测以"观测："开头，作为多步链的第二环。"""
     return Tool(name="calculator", description="执行算术运算",
                 parameters={"type": "object", "required": ["expression"],
                             "properties": {"expression": {"type": "string"}}},
@@ -34,6 +36,8 @@ def _calculator_tool() -> Tool:
 async def two_step_tool_chain(ctx: TestContext) -> None:
     """断言：tool_call_names == ["get_weather", "calculator"] 且成功。"""
     client = scripted_or_real(ctx, rules=[
+        # 首条命中返回第一环工具调用；次条在 "[tool]" 观测行上命中并返回第二环调用，
+        # 黄金脚本借此模拟"看到观测后决定下一步"的多步链
         MockRule(match="天气", reply={"tool_calls": [
             {"id": "c1", "name": "get_weather", "arguments": {"city": "北京"}}]}, times=1),
         MockRule(match=r"\[tool\]", reply={"tool_calls": [
@@ -65,6 +69,7 @@ async def answer_based_on_tool_result(ctx: TestContext) -> None:
     trace = await harness.run("北京今天天气怎么样？")
     assert trace.success, "任务未成功完成"
     assert_contains(trace.tool_results[0].output, "25 度")
+    # 最终答案须复现观测中的关键数值，证明答案源自工具结果而非凭空捏造
     assert_contains(trace.final_answer, "25 度")
 
 
@@ -85,5 +90,6 @@ async def no_repeated_tool_calls(ctx: TestContext) -> None:
                            system_prompt="你是助手，可多步调用工具。", max_iterations=6)
     trace = await harness.run("查北京天气，再算 1+1")
     assert trace.success, "任务未成功完成"
+    # 用集合去重后的长度比对：相等即无重复，捕捉"任务完成后仍反复调用同一工具"的退化行为
     assert len(trace.tool_call_names) == len(set(trace.tool_call_names)), "工具调用出现重复: {}".format(trace.tool_call_names)
     assert trace.tool_call_names == ["get_weather", "calculator"], "工具链顺序错误: {}".format(trace.tool_call_names)

@@ -29,29 +29,37 @@ from pydantic import BaseModel, Field
 
 from llmqa.clients.base import Message
 
+# 模板占位符语法 {{ var }}：变量名支持点号路径（如 user.name），允许两侧空白。
 _VAR_RE = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}")
 
 
 class PromptError(RuntimeError):
+    """Prompt 子系统的统一异常基类，便于调用方一次性捕获。"""
     pass
 
 
 class PromptNotFound(PromptError):
+    """请求的 Prompt id 或版本不存在。"""
     pass
 
 
 class PromptRenderError(PromptError):
+    """渲染阶段失败：缺少必填变量、使用了未声明变量或变量值为 None。"""
     pass
 
 
 class VariableSpec(BaseModel):
+    """单个模板变量的声明：类型、是否必填、说明与默认值。"""
+
     type: str = "string"
     required: bool = True
     description: str = ""
-    default: Any = None
+    default: Any = None    # 默认值；None 表示无默认（必填变量不得缺省）
 
 
 class PromptMessage(BaseModel):
+    """一条消息模板：content 可含 {{ var }} 占位符，渲染时被替换。"""
+
     role: str = "system"
     content: str = ""
 
@@ -67,16 +75,18 @@ class PromptTemplate(BaseModel):
     variables: dict[str, VariableSpec] = Field(default_factory=dict)
     changelog: list[dict[str, Any]] = Field(default_factory=list)
     scan_ignore: list[str] = Field(default_factory=list)   # 豁免的扫描规则名（如护栏文本合法提及"系统提示词"）
-    path: Path | None = None
+    path: Path | None = None    # 源 YAML 路径；内存构造时为 None（无法回写 promote）
 
     @property
     def used_variables(self) -> set[str]:
+        """模板消息中实际引用的变量集合（从占位符提取，用于未声明校验）。"""
         used: set[str] = set()
         for m in self.messages:
             used.update(_VAR_RE.findall(m.content))
         return used
 
     def full_text(self) -> str:
+        """把全部消息拼成纯文本（[role] 前缀 + content），作为 diff 的输入。"""
         return "\n\n".join("[{}]\n{}".format(m.role, m.content) for m in self.messages)
 
 
@@ -84,6 +94,7 @@ class PromptManager:
     """加载、查询、渲染、diff 与状态管理的 Prompt 仓库。"""
 
     def __init__(self, root: str | Path):
+        """root 为 prompts 目录；_templates 按 id→version 二级索引，_pins 记录全局钉住版本。"""
         self.root = Path(root)
         self._templates: dict[str, dict[int, PromptTemplate]] = {}
         self._pins: dict[str, int] = {}
@@ -102,6 +113,7 @@ class PromptManager:
 
     # ---------- 加载与查询 ----------
     def load(self) -> "PromptManager":
+        """扫描 root 下全部 .yaml 重建索引；同一 id 可并存多个 version（二级键为版本号）。"""
         self._templates.clear()
         for path in sorted(self.root.rglob("*.yaml")):
             data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -119,10 +131,12 @@ class PromptManager:
                 scan_ignore=data.get("scan_ignore", []),
                 path=path,
             )
+            # 以 id 为一级键、version 为二级键，同一 id 的多个版本自然聚拢。
             self._templates.setdefault(template.id, {})[template.version] = template
         return self
 
     def list(self, *, name: str | None = None, status: str | None = None) -> list[PromptTemplate]:
+        """列出过滤后的模板：name 做 id 子串匹配，status 精确匹配，结果按 (id, version) 排序。"""
         out: list[PromptTemplate] = []
         for versions in self._templates.values():
             for t in versions.values():
@@ -134,6 +148,7 @@ class PromptManager:
         return sorted(out, key=lambda t: (t.id, t.version))
 
     def get(self, prompt_id: str, version: int | None = None) -> PromptTemplate:
+        """按 id（可选 version）取模板；version 为 None 时取最新 active，无 active 回退最大版本号。"""
         versions = self._templates.get(prompt_id)
         if not versions:
             raise PromptNotFound("Prompt 不存在: {}".format(prompt_id))
@@ -156,7 +171,7 @@ class PromptManager:
         if version is None:
             version = self._pins.get(prompt_id)
         template = self.get(prompt_id, version)
-        variables = dict(variables or {})
+        variables = dict(variables or {})   # 拷贝一份，避免渲染过程污染调用方的字典
         # 1. 必填校验
         missing = [k for k, spec in template.variables.items()
                    if spec.required and k not in variables and spec.default is None]
@@ -193,6 +208,7 @@ class PromptManager:
         return problems
 
     def diff(self, prompt_id: str, v1: int, v2: int) -> str:
+        """返回 v1→v2 的统一 diff（基于 full_text 展开，面向人工审阅而非机器解析）。"""
         a = self.get(prompt_id, v1)
         b = self.get(prompt_id, v2)
         return "".join(difflib.unified_diff(
@@ -212,6 +228,7 @@ class PromptManager:
             raise PromptError("{} 无源文件，无法流转".format(prompt_id))
         data = yaml.safe_load(template.path.read_text(encoding="utf-8")) or {}
         data["status"] = status
+        # 重新读盘只改 status 再整体写回：避免用内存模型序列化而丢失 YAML 中的其他字段与手工排版。
         template.path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
                                  encoding="utf-8")
         template.status = status
@@ -219,6 +236,7 @@ class PromptManager:
 
 
 def _render_value(variables: dict[str, Any], key: str, prompt_id: str) -> str:
+    """取变量值并转字符串；缺失或为 None 抛 PromptRenderError，不允许静默输出空串。"""
     if key not in variables:
         raise PromptRenderError("Prompt {} 渲染时缺少变量: {}".format(prompt_id, key))
     value = variables[key]

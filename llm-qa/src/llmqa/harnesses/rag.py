@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from llmqa.clients.base import LLMClient, LLMResponse, Message
 
+# 默认提示词模板：渲染前用 .format 填入 {context}（检索资料）与 {question}（用户问题）。
 DEFAULT_RAG_PROMPT = (
     "你是一名基于检索资料作答的助手。只能依据【参考资料】回答；"
     "若资料不足，必须明确说明无法回答，不得编造。\n\n"
@@ -22,6 +23,8 @@ DEFAULT_RAG_PROMPT = (
 
 
 class RAGDocument(BaseModel):
+    """语料中的一篇原始文档，后续会按字符数切片。"""
+
     id: str
     title: str = ""
     text: str = ""
@@ -29,15 +32,19 @@ class RAGDocument(BaseModel):
 
 
 class Chunk(BaseModel):
+    """文档切片；chunk_id 由 doc_id + 序号组成，index 为文档内切片位置。"""
+
     chunk_id: str
     doc_id: str
     title: str = ""
     text: str = ""
-    index: int = 0
+    index: int = 0    # 切片在源文档中的顺序（从 0 起），供命中定位与排序
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class RetrievalResult(BaseModel):
+    """一次检索返回：命中块与其 BM25 分数（scores 与 chunks 按下标一一对应）。"""
+
     query: str = ""
     chunks: list[Chunk] = Field(default_factory=list)
     scores: list[float] = Field(default_factory=list)
@@ -70,14 +77,18 @@ def tokenize(text: str) -> list[str]:
 
 
 class RAGCorpus:
+    """文档集合；提供从 dict 列表构造与统一切片能力。"""
+
     def __init__(self, documents: list[RAGDocument]):
         self.documents = documents
 
     @classmethod
     def from_dicts(cls, docs: list[dict]) -> "RAGCorpus":
+        """从 dict 列表构造语料，便于直接喂入 YAML/JSON 数据集。"""
         return cls([RAGDocument(**d) for d in docs])
 
     def chunk(self, chunk_size: int = 400, overlap: int = 80) -> list[Chunk]:
+        """按字符数切片；overlap 让相邻块重叠，降低语义被切断的风险。"""
         chunks: list[Chunk] = []
         for doc in self.documents:
             text = doc.text.strip()
@@ -93,6 +104,7 @@ class RAGCorpus:
                     metadata=dict(doc.metadata)))
                 if end >= len(text):
                     break
+                # 步进 = chunk_size - overlap；max(..., start+1) 保证 overlap≥chunk_size 时也不死循环。
                 start = max(end - overlap, start + 1)
                 idx += 1
         return chunks
@@ -104,6 +116,7 @@ class RAGHarness:
     def __init__(self, corpus: RAGCorpus | list[dict], client: LLMClient, *,
                  chunk_size: int = 400, overlap: int = 80, top_k: int = 4,
                  prompt_manager=None, prompt_id: str = "rag/answer"):
+        """构造即切片并建索引；prompt_manager 非空时走版本化模板，否则用内置默认提示词。"""
         if isinstance(corpus, list):
             corpus = RAGCorpus.from_dicts(corpus)
         self.corpus = corpus
@@ -119,8 +132,10 @@ class RAGHarness:
 
     # ---------- BM25-lite 索引 ----------
     def _index(self) -> None:
+        """预计算每块词项、文档长度、平均长度与词项文档频率，供 BM25 快速打分。"""
         self._doc_tokens: list[list[str]] = [tokenize(c.text) for c in self.chunks]
         self._doc_len = [len(t) for t in self._doc_tokens]
+        # max(1, ...) 防除零：空语料时 avgdl 退化为 0 而非抛异常。
         self._avgdl = sum(self._doc_len) / max(1, len(self._doc_tokens))
         self._df = {}
         for tokens in self._doc_tokens:
@@ -128,8 +143,9 @@ class RAGHarness:
                 self._df[term] = self._df.get(term, 0) + 1
 
     def _bm25_scores(self, query_tokens: list[str]) -> list[float]:
+        """对每个块计算 BM25 分数；返回与 self.chunks 等长的列表。"""
         n = len(self._doc_tokens)
-        k1, b = 1.5, 0.75
+        k1, b = 1.5, 0.75    # BM25 标准超参：k1 控词频饱和，b 控长度归一化强度
         scores = [0.0] * n
         for term in set(query_tokens):
             df = self._df.get(term, 0)
@@ -144,6 +160,7 @@ class RAGHarness:
         return scores
 
     async def retrieve(self, query: str, k: int | None = None) -> RetrievalResult:
+        """检索 top-k 块；仅返回分数大于 0 的命中（无词项重叠时为空结果）。"""
         scores = self._bm25_scores(tokenize(query))
         order = sorted(range(len(scores)), key=lambda i: -scores[i])[: (k or self.top_k)]
         return RetrievalResult(
@@ -153,6 +170,7 @@ class RAGHarness:
         )
 
     def build_context(self, result: RetrievalResult) -> str:
+        """把命中块拼成带出处标注的参考资料文本。"""
         parts = []
         for i, c in enumerate(result.chunks, 1):
             parts.append("[资料{} 来自文档《{}》]\n{}".format(i, c.title or c.doc_id, c.text))
@@ -160,6 +178,7 @@ class RAGHarness:
 
     async def answer(self, question: str, *, k: int | None = None,
                      temperature: float = 0.0, max_tokens: int = 512) -> LLMResponse:
+        """检索→组上下文→生成，一步完成 RAG 问答。"""
         result = await self.retrieve(question, k)
         context = self.build_context(result)
         if self.prompt_manager is not None:
@@ -173,6 +192,7 @@ class RAGHarness:
     # ---------- 检索质量评估 ----------
     def evaluate_retrieval(self, queries: list[RetrievalQuery],
                            k: int | None = None) -> RetrievalMetrics:
+        """对一组标注样例计算 recall@k / hit@k / MRR / precision@k 的平均值。"""
         per_query: list[dict[str, Any]] = []
         recalls, hits, mrrs, precs = [], [], [], []
         for q in queries:
@@ -182,6 +202,7 @@ class RAGHarness:
             retrieved_docs = [self.chunks[i].doc_id for i in order if scores[i] > 0]
             retrieved_chunks = [self.chunks[i].chunk_id for i in order if scores[i] > 0]
             rel_docs = set(q.relevant_doc_ids)
+            # 未逐块标注时回退：整篇相关文档的所有块都视为相关。
             rel_chunks = set(q.relevant_chunk_ids) or {
                 c.chunk_id for c in self.chunks if c.doc_id in rel_docs}
             hit_docs = [d for d in retrieved_docs if d in rel_docs]

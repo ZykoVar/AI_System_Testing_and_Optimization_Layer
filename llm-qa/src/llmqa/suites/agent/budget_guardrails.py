@@ -15,6 +15,7 @@ from llmqa.harnesses import AgentHarness, Tool
 
 
 def _weather_tool() -> Tool:
+    """构造天气工具：配合无限命中规则，让预算护栏成为唯一的终止条件。"""
     return Tool(name="get_weather", description="查询城市天气",
                 parameters={"type": "object", "required": ["city"],
                             "properties": {"city": {"type": "string"}}},
@@ -46,6 +47,7 @@ async def token_budget_exceeded(ctx: TestContext) -> None:
         MockRule(match=".*", reply={"tool_calls": [
             {"id": "c1", "name": "get_weather", "arguments": {"city": "北京"}}]}),
     ])
+    # max_total_tokens=1：首轮生成必然超预算，触发 token 预算护栏（而非迭代耗尽）
     harness = AgentHarness(client, [_weather_tool()], system_prompt="你是助手，可调用工具。",
                            max_iterations=6, max_total_tokens=1)
     trace = await harness.run("北京今天天气怎么样？")
@@ -62,6 +64,7 @@ async def normal_task_within_budget(ctx: TestContext) -> None:
             {"id": "c1", "name": "get_weather", "arguments": {"city": "北京"}}]}, times=1),
         MockRule(match=r"\[tool\]", reply="北京今天晴，25 度。", match_transcript=True),
     ])
+    # 预算充足且规则只命中一次：验证护栏不会误伤正常任务（success 且 abort_reason 为 None）
     harness = AgentHarness(client, [_weather_tool()], system_prompt="你是助手，可调用工具。",
                            max_iterations=6, max_total_tokens=2000)
     trace = await harness.run("北京今天天气怎么样？")

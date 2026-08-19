@@ -19,15 +19,18 @@ def _resolve_root(config_dir: str | None = None) -> Path:
     """--config 指向 config 目录；未提供时自动定位仓库根（含安装包回退）。"""
     from llmqa.config import repo_root
     if config_dir:
+        # --config 传入的是 config 目录本身，仓库根取其父目录
         return Path(config_dir).resolve().parent
     return repo_root()
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
+    """构造参数解析器：run / prompts / datasets / demo 四个子命令。"""
     parser = argparse.ArgumentParser(
         prog="llmqa", description="企业级 LLM/Agent 质量保障测试框架")
     parser.add_argument("--config", default=None,
                         help="config 目录路径（默认自动定位仓库根/config，支持任意目录运行）")
+    # required=True：不带任何子命令时直接报错，避免静默无操作
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_run = sub.add_parser("run", help="运行测试套件")
@@ -85,6 +88,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 
 
 def _run(args: argparse.Namespace) -> int:
+    """执行 run 子命令：加载配置→发现用例→过滤→并发运行→产出报告并返回退出码。"""
     from llmqa.clients import ClientPool
     from llmqa.config import Settings, repo_root
     from llmqa.core.models import Severity, TestContext
@@ -96,10 +100,12 @@ def _run(args: argparse.Namespace) -> int:
     from llmqa.suites import DEFAULT_PACKAGES
 
     root = _resolve_root(args.config)
+    # config 未显式指定时回退到仓库默认 config 目录
     settings = Settings.load(args.config or (root / "config"))
     prompts = PromptManager(root / "prompts").load()
     datasets = DatasetManager(root / "datasets")
     pool = ClientPool(settings)
+    # CLI 显式指定优先，否则用 settings 默认 Provider
     provider_name = args.provider or settings.default_provider
 
     def ctx_factory() -> TestContext:
@@ -109,12 +115,15 @@ def _run(args: argparse.Namespace) -> int:
                            prompts=prompts, datasets=datasets)
 
     cases = discover(DEFAULT_PACKAGES)
+    # 未指定严重级时传 None 表示不过滤；统一转大写以匹配枚举名
     min_sev = Severity(args.severity.upper()) if args.severity else None
+    # 空集合折叠为 None，语义是"该维度不过滤"
     cases = [c for c in cases if c.matches(
         suites=set(args.suite) or None, tags=set(args.tag) or None,
         exclude_tags=set(args.exclude_tag) or None, min_severity=min_sev)]
 
     if args.list:
+        # --list 只列出匹配用例，不执行，直接返回
         for c in sorted(cases, key=lambda c: (c.suite, c.id)):
             print("{:<12} {:<38} {} [{}]".format(
                 c.suite, c.id, c.name, ",".join(sorted(c.tags)) or "-"))
@@ -128,6 +137,7 @@ def _run(args: argparse.Namespace) -> int:
         concurrency=args.concurrency or settings.concurrency,
         fail_fast=args.fail_fast or settings.fail_fast,
         retries_on_error=settings.retries_on_error,
+        # 显式 --timeout 优先，否则回退到配置默认
         default_timeout=args.timeout or settings.timeout_per_test,
         progress=reporter.on_case_done,
     )
@@ -137,11 +147,13 @@ def _run(args: argparse.Namespace) -> int:
     print(report.summary_text())
     print("报告: " + ", ".join("{} → {}".format(k, v) for k, v in files.items()))
     if args.soft:
+        # --soft：无论是否失败都返回 0，供门禁外的软性检查使用
         return 0
     return 0 if not report.failures else 1
 
 
 def _prompts(args: argparse.Namespace) -> int:
+    """执行 prompts 子命令：按 prompt_action 分派到各 Prompt 管理操作。"""
     from llmqa.prompts import PromptManager, PromptScanner
     root = _resolve_root(args.config)
     manager = PromptManager(root / "prompts").load()
@@ -160,6 +172,7 @@ def _prompts(args: argparse.Namespace) -> int:
     elif action == "scan":
         scanner = PromptScanner()
         total = 0
+        # 跨全库累计风险条数，用于最终退出码判定
         for pid, report in scanner.scan_library(manager).items():
             if report.findings:
                 total += len(report.findings)
@@ -210,10 +223,12 @@ def _prompts_abtest(args: argparse.Namespace) -> int:
     print(result.summary_text())
     print("A/B 报告: " + ", ".join("{} → {}".format(k, v) for k, v in files.items()))
     print("标准报告: reports/{} 与 reports/{}".format(result.run_id_a, result.run_id_b))
+    # 出现回归即判失败，供 CI 门禁使用
     return 1 if result.regressions else 0
 
 
 def _datasets(args: argparse.Namespace) -> int:
+    """执行 datasets 子命令：逐行打印全部数据集名称。"""
     from llmqa.datasets import DatasetManager
     for name in DatasetManager(_resolve_root(args.config) / "datasets").list():
         print(name)
@@ -221,12 +236,14 @@ def _datasets(args: argparse.Namespace) -> int:
 
 
 def _demo(args: argparse.Namespace) -> int:
+    """执行 demo 子命令：导入演示模块触发 @test 注册，再运行演示套件。"""
     from llmqa import demo  # noqa: F401 —— 导入即注册演示用例
     return demo.run()
 
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI 入口：解析参数并按子命令分派，返回进程退出码。"""
     args = _build_arg_parser().parse_args(argv)
     if args.command == "run":
         return _run(args)

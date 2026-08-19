@@ -1,6 +1,8 @@
 """llmqa —— 企业级 LLM/Agent 质量保障测试框架。
 
 六大子系统：Prompt 管理 / LLM 质量 / RAG 专项 / Agent / 安全红队 / 性能。
+
+包级扁平化导出：把各子系统常用符号集中到 llmqa 顶层，用户 `from llmqa import ...` 即可。
 """
 from llmqa.assertors import (
     AssertionFailed,
@@ -33,8 +35,10 @@ from llmqa.core import (
     test,
 )
 
+# 单一版本号来源，发布时递增
 __version__ = "0.1.0"
 
+# 显式声明公共 API，避免 `from llmqa import *` 引入内部符号
 __all__ = [
     "__version__", "Settings", "Severity", "Verdict", "SkipTest",
     "TestContext", "TestOutcome", "test", "discover",

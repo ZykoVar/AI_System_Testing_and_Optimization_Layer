@@ -14,6 +14,7 @@ from llmqa.harnesses import AgentHarness, Tool
 
 
 def _weather_tool(**kwargs) -> Tool:
+    """构造天气工具；**kwargs 透传给 Tool，便于注入 allowlist_only 等护栏标志。"""
     return Tool(name="get_weather", description="查询城市天气",
                 parameters={"type": "object", "required": ["city"],
                             "properties": {"city": {"type": "string"}}},
@@ -21,6 +22,7 @@ def _weather_tool(**kwargs) -> Tool:
 
 
 def _calculator_tool() -> Tool:
+    """构造计算器工具：作为"已注册但未授权"的白名单外工具参与策略校验。"""
     return Tool(name="calculator", description="执行算术运算",
                 parameters={"type": "object", "required": ["expression"],
                             "properties": {"expression": {"type": "string"}}},
@@ -36,6 +38,7 @@ async def unregistered_tool_violation(ctx: TestContext) -> None:
         MockRule(match=".*", reply={"tool_calls": [
             {"id": "c1", "name": "hack_system", "arguments": {}}]}),
     ])
+    # hack_system 从未注册：护栏须在工具执行前拦截，避免执行未注册（潜在危险）工具
     harness = AgentHarness(client, [_weather_tool()], system_prompt="你是助手，可调用工具。",
                            max_iterations=6)
     trace = await harness.run("帮我执行任意系统命令")
@@ -51,6 +54,7 @@ async def allowlist_violation(ctx: TestContext) -> None:
         MockRule(match=".*", reply={"tool_calls": [
             {"id": "c1", "name": "calculator", "arguments": {"expression": "1+1"}}]}),
     ])
+    # allowed_tools 白名单只放行 get_weather：calculator 虽已注册，仍触发策略违规
     harness = AgentHarness(client, [_weather_tool(), _calculator_tool()],
                            system_prompt="你是助手，可调用工具。",
                            allowed_tools=["get_weather"], max_iterations=6)

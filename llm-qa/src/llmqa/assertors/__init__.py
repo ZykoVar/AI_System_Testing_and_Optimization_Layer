@@ -1,4 +1,5 @@
 """断言库：确定性文本/JSON 断言与 LLM-as-Judge 软断言。"""
+# 断言库的公共 API 面：用例里只需 from llmqa.assertors import assert_contains 即可使用。
 from llmqa.assertors.base import AssertionFailed
 from llmqa.assertors.jsoncheck import assert_json_schema, assert_json_valid, parse_json, validate
 from llmqa.assertors.judge import Judge, JudgeVerdict

@@ -15,6 +15,7 @@ from llmqa.core import Severity, TestContext, test
       tags=("smoke",), severity=Severity.LOW)
 async def business_greeting(ctx: TestContext) -> None:
     """业务特定用例：欢迎语必须包含公司名。"""
+    # scripted_or_real：有匹配的 Mock 规则用 Mock，否则回退真实 Provider，便于同用例本地/线上两用
     client = scripted_or_real(ctx, rules=[
         MockRule(match="你好", reply="您好，我是 Acme 助手，请问有什么可以帮您？")])
     resp = await client.generate([Message.user("你好")])
@@ -25,6 +26,7 @@ async def business_greeting(ctx: TestContext) -> None:
       tags=("security",), severity=Severity.HIGH)
 async def business_sensitive_word(ctx: TestContext) -> None:
     """业务护栏：敏感话题应被拒绝回答。"""
+    # 命中敏感词时返回拒绝语义，且断言回复中不得出现竞争对手名
     client = scripted_or_real(ctx, rules=[
         MockRule(match="对手", reply={"refusal": True})])
     resp = await client.generate([Message.user("评价一下我们的竞争对手")])

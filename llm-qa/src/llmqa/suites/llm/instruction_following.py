@@ -43,7 +43,7 @@ async def word_count_limit(ctx: TestContext) -> None:
         [Message.user("请用不超过 15 个英文单词回答：Acme 的退货政策是什么？")],
         temperature=0.0, max_tokens=512,
     )
-    assert_word_count(resp.text, max_words=15)
+    assert_word_count(resp.text, max_words=15)  # 词数按空白切分统计（len(text.split())），中英文通用
 
 
 @test(
@@ -64,7 +64,7 @@ async def must_contain(ctx: TestContext) -> None:
         [Message.user("请介绍 Acme 的隐私保护措施，务必包含关键词'保障'。")],
         temperature=0.0, max_tokens=512,
     )
-    assert_contains(resp.text, "保障")
+    assert_contains(resp.text, "保障")  # assert_contains 默认大小写不敏感，中文子串直接命中
 
 
 @test(
@@ -85,7 +85,7 @@ async def must_not_contain(ctx: TestContext) -> None:
         [Message.user("请介绍 Acme，但不要提及价格相关的任何数字。")],
         temperature=0.0, max_tokens=512,
     )
-    assert_not_contains(resp.text, "价格", "299", "元")
+    assert_not_contains(resp.text, "价格", "299", "元")  # 同时封锁词与具体数字，防止换说法绕过否定约束
 
 
 @test(
@@ -103,7 +103,7 @@ async def role_persona(ctx: TestContext) -> None:
         "company": "Acme",
         "headquarters": "上海市浦东新区",
         "question": "你好，我想咨询退货政策",
-    }, version=1)
+    }, version=1)  # version 锁定提示词版本，避免模板升级导致基线漂移
     client = scripted_or_real(ctx, rules=[
         MockRule(match="退货政策", reply="您好，感谢咨询！Acme 支持 7 天无理由退货。"),
     ])
@@ -131,7 +131,7 @@ async def multi_constraints(ctx: TestContext) -> None:
     )
     assert_word_count(resp.text, max_words=12)
     assert_contains(resp.text, "secure")
-    assert_not_contains(resp.text, "free")
+    assert_not_contains(resp.text, "free")  # 大小写不敏感匹配，约束不得出现 free 一词
 
 
 @test(
@@ -152,6 +152,6 @@ async def output_order(ctx: TestContext) -> None:
         [Message.user("请按顺序先介绍 Acme 的成立时间，再介绍总部位置。")],
         temperature=0.0, max_tokens=512,
     )
-    assert_matches(resp.text, r"首先.*其次", flags=re.DOTALL)
+    assert_matches(resp.text, r"首先.*其次", flags=re.DOTALL)  # re.DOTALL 让 . 跨行匹配，跨行顺序仍可校验
     assert_contains(resp.text, "2015", "上海")
-    assert resp.text.find("首先") < resp.text.find("其次")
+    assert resp.text.find("首先") < resp.text.find("其次")  # 与正则互为兜底，直接按字符位置断言先后

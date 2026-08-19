@@ -27,11 +27,11 @@ from llmqa.core.registry import test
 async def zh_answer(ctx: TestContext) -> None:
     """断言：回复中文（CJK）占比≥0.5。"""
     client = scripted_or_real(ctx, rules=[
-        MockRule(match="总部", reply="Acme 公司总部位于上海市浦东新区。"),
+        MockRule(match="总部", reply="Acme 公司总部位于上海市浦东新区。"),  # 回复夹带英文 "Acme"，占比判定仍应判为中文
     ])
     resp = await client.generate(
         [Message.user("Acme 公司的总部在哪里？")], temperature=0.0, max_tokens=512)
-    assert_in_language(resp.text, "zh")
+    assert_in_language(resp.text, "zh")  # 启发式占比：CJK 字符占比≥0.5，无需分词器
 
 
 @test(
@@ -46,11 +46,11 @@ async def zh_answer(ctx: TestContext) -> None:
 async def en_answer(ctx: TestContext) -> None:
     """断言：回复英文（Latin）占比≥0.5。"""
     client = scripted_or_real(ctx, rules=[
-        MockRule(match="headquarter", reply="Acme is headquartered in Shanghai."),
+        MockRule(match="headquarter", reply="Acme is headquartered in Shanghai."),  # match 正则大小写不敏感，命中用户消息中的 "headquartered"
     ])
     resp = await client.generate(
         [Message.user("Where is Acme headquartered?")], temperature=0.0, max_tokens=512)
-    assert_in_language(resp.text, "en")
+    assert_in_language(resp.text, "en")  # 英文按 2+ 字母的 Latin 片段计数，占比≥0.5 判定为英文
 
 
 @test(
@@ -69,5 +69,5 @@ async def translate_zh_to_en(ctx: TestContext) -> None:
     ])
     resp = await client.generate(
         [Message.user("请把'你好'翻译成英文。")], temperature=0.0, max_tokens=512)
-    assert_contains(resp.text, "hello")
-    assert_in_language(resp.text, "en")
+    assert_contains(resp.text, "hello")  # 大小写不敏感命中 "Hello"，先验译文词再叠加语言占比
+    assert_in_language(resp.text, "en")  # 双重确认：既含英文关键词，且英文为主要语言

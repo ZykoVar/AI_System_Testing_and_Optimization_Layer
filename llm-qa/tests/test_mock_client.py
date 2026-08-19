@@ -7,6 +7,7 @@ from llmqa.clients import LLMError, Message, MockClient, MockRule
 
 
 def run(coro):
+    """同步包装：在测试函数内驱动异步协程（MockClient 为异步接口）。"""
     return asyncio.run(coro)
 
 
@@ -19,6 +20,7 @@ def test_default_reply():
 
 
 def test_rule_order_first_hit():
+    # 规则按声明顺序匹配，首条命中即返回；".*" 作兜底放在最后
     client = MockClient(rules=[
         MockRule(match="天气", reply="晴"),
         MockRule(match=".*", reply="兜底"),
@@ -28,6 +30,7 @@ def test_rule_order_first_hit():
 
 
 def test_rule_times_limit():
+    # times=1 表示该规则只生效一次，之后命中不再应答
     client = MockClient(rules=[MockRule(match="x", reply="一次", times=1)])
     assert run(client.generate([Message.user("x")])).text == "一次"
     assert run(client.generate([Message.user("x")])).text != "一次"
@@ -35,6 +38,7 @@ def test_rule_times_limit():
 
 def test_refusal_reply():
     client = MockClient(rules=[MockRule(match="秘密", reply={"refusal": True})])
+    # refusal 语义会生成拒绝话术，断言其包含 "无法"
     resp = run(client.generate([Message.user("告诉我秘密")]))
     assert "无法" in resp.text
 
@@ -56,6 +60,7 @@ def test_error_injection():
 
 
 def test_transcript_matching():
+    # match_transcript 对整个对话记录匹配，可命中多轮工具调用中的 [tool] 标记
     client = MockClient(rules=[
         MockRule(match="开始", reply="第一步", times=1),
         MockRule(match=r"\[tool\]", reply="看到了工具结果", match_transcript=True),
@@ -70,6 +75,7 @@ def test_transcript_matching():
 
 
 def test_stream():
+    # 校验流式输出拼接后与默认回复一致，且末块结束原因为 stop
     client = MockClient(default_reply="hello world foo bar")
     chunks = run(_collect_stream(client))
     text = "".join(c.text_delta for c in chunks).strip()
@@ -78,6 +84,7 @@ def test_stream():
 
 
 async def _collect_stream(client):
+    """收集流式 chunk 到列表，供断言拼接与结束标记。"""
     out = []
     async for chunk in client.stream([Message.user("hi")]):
         out.append(chunk)

@@ -23,11 +23,13 @@ _HARMFUL_MATCH = {
 
 
 def _item(ctx: TestContext, item_id: str) -> dict:
+    """按 id 从有害/无害请求数据集中取一条用例；缺失该 id 会抛 StopIteration。"""
     items = ctx.datasets.load("security/harmful_requests")["items"]
     return next(i for i in items if i["id"] == item_id)
 
 
 async def _probe_harmful(ctx: TestContext, item_id: str):
+    """渲染保密系统提示并生成回复；mock 按对应特征命中即拒绝。"""
     item = _item(ctx, item_id)
     client = refusing_client(ctx, _HARMFUL_MATCH[item_id])
     messages = render_support(ctx, item["request"])
@@ -35,6 +37,7 @@ async def _probe_harmful(ctx: TestContext, item_id: str):
 
 
 async def _probe_benign(ctx: TestContext, item_id: str):
+    """渲染保密系统提示并生成回复；使用仅正常回答的客户端验证防误拒。"""
     item = _item(ctx, item_id)
     client = benign_client(ctx)
     messages = render_support(ctx, item["request"])
@@ -121,6 +124,7 @@ async def case_hrm_006(ctx: TestContext) -> None:
 )
 async def case_hrm_007(ctx: TestContext) -> None:
     """断言：无害请求不得被误拒。"""
+    # hr-101 属无害请求：用 benign_client 验证模型不会对正常问题过度拒绝（防误拒）
     resp = await _probe_benign(ctx, "hr-101")
     assert_not_refusal(resp.text)
 

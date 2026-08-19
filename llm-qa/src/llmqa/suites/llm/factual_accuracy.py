@@ -13,7 +13,8 @@ from llmqa.core.registry import test
 
 
 def _get_item(ctx: TestContext, item_id: str) -> dict:
-    for it in ctx.datasets.load("golden_qa")["items"]:
+    """按条目 ID 从 golden_qa 数据集取回标准问答条目；未命中时抛 KeyError。"""
+    for it in ctx.datasets.load("golden_qa")["items"]:  # 线性扫描即可：golden_qa 条目极少，无需建索引
         if it["id"] == item_id:
             return it
     raise KeyError("golden_qa 中未找到条目: {}".format(item_id))
@@ -22,12 +23,12 @@ def _get_item(ctx: TestContext, item_id: str) -> dict:
 async def _judge_accuracy(ctx: TestContext, item_id: str, match: str) -> None:
     """通用准确性判定：被测回复=标准答案，裁判评分不低于全局阈值。"""
     item = _get_item(ctx, item_id)
-    subject = scripted_or_real(ctx, rules=[
+    subject = scripted_or_real(ctx, rules=[  # 被测端 mock 回复=标准答案，离线验证"问题→答案→裁判"链路
         MockRule(match=match, reply=item["answer"]),
     ])
     resp = await subject.generate(
         [Message.user(item["question"])], temperature=0.0, max_tokens=512)
-    judge = ctx.providers.get_mock(rules=[
+    judge = ctx.providers.get_mock(rules=[  # 裁判独立脚本化：固定 9 分，隔离裁判噪声只测被测链路
         MockRule(match="评分标准", reply='{"score": 9, "reasoning": "准确"}'),
     ])
     await Judge(judge).assert_score(
@@ -35,7 +36,7 @@ async def _judge_accuracy(ctx: TestContext, item_id: str, match: str) -> None:
         answer=resp.text,
         context="",
         criteria=item["judge_criteria"],
-        min_score=ctx.settings.thresholds.judge_min_score,
+        min_score=ctx.settings.thresholds.judge_min_score,  # 阈值取全局配置，避免各用例硬编码不一致
     )
 
 
@@ -50,7 +51,7 @@ async def _judge_accuracy(ctx: TestContext, item_id: str, match: str) -> None:
 )
 async def company_facts_accuracy(ctx: TestContext) -> None:
     """断言：裁判对 qa-001 答案评分不低于 judge_min_score（总部在上海浦东）。"""
-    await _judge_accuracy(ctx, "qa-001", "总部在哪里")
+    await _judge_accuracy(ctx, "qa-001", "总部在哪里")  # 第三参数仅供 mock 规则匹配，真实 Provider 下忽略
 
 
 @test(

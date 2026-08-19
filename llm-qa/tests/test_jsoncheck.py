@@ -3,6 +3,7 @@ import pytest
 
 from llmqa.assertors import AssertionFailed, assert_json_schema, assert_json_valid
 
+# 三反引号围栏，避免在源码里直接写 ``` 造成转义困扰
 FENCE = chr(96) * 3
 
 
@@ -11,6 +12,7 @@ def test_parse_plain_json():
 
 
 def test_parse_fenced_json():
+    # 模拟模型常见的 Markdown 围栏输出，前后夹杂自然语言
     text = "好的，结果如下：\n" + FENCE + "json\n{\"a\": 1}\n" + FENCE + "\n希望有帮助"
     assert assert_json_valid(text) == {"a": 1}
 
@@ -25,6 +27,7 @@ def test_parse_invalid():
 
 
 def test_schema_pass():
+    # additionalProperties=False 关闭宽容模式，未声明字段会被拒绝
     schema = {"type": "object", "required": ["name", "age"],
               "properties": {"name": {"type": "string", "minLength": 1},
                              "age": {"type": "integer", "minimum": 0}},
@@ -41,6 +44,7 @@ def test_schema_missing_required():
 
 
 def test_schema_extra_field():
+    # 多出的字段在严格模式下报"未声明"，用于发现模型幻觉出的键
     schema = {"type": "object", "properties": {"name": {"type": "string"}},
               "additionalProperties": False}
     with pytest.raises(AssertionFailed) as exc_info:

@@ -25,6 +25,7 @@ async def case_completion_within_limit(ctx: TestContext) -> None:
     max_tokens = 64
     resp = await client.generate([Message.user("请简短回答")], max_tokens=max_tokens)
     comp = resp.usage.completion_tokens
+    # completion_tokens 不得超过请求时声明的 max_tokens，否则说明输出上限未被遵守
     if comp > max_tokens:
         raise AssertionFailed("输出 {:,} token 超过 max_tokens={}".format(comp, max_tokens),
                               metrics={"completion_tokens": comp, "max_tokens": max_tokens})
@@ -38,6 +39,7 @@ async def case_brief_reply(ctx: TestContext) -> None:
     payload = ctx.datasets.load("performance/payloads")["short"]
     client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="这是针对短问题的简短回复。")])
     resp = await client.generate([Message.user(payload)], max_tokens=200)
+    # 短问题不应得到冗长回复：200 词上限用于捕捉"答非所问式灌水"
     assert_word_count(resp.text, max_words=200, message="短问题回复超过 200 词")
 
 
@@ -50,6 +52,7 @@ async def case_prompt_tokens(ctx: TestContext) -> None:
     client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="长输入回复。")])
     resp = await client.generate([Message.user(payload)])
     pt = resp.usage.prompt_tokens
+    # 长提示的输入 token 必须被统计到（>0），否则 usage 统计口径有误
     if pt <= 0:
         raise AssertionFailed("长提示输入 token 未被正确统计（prompt_tokens={}）".format(pt),
                               metrics={"prompt_tokens": pt, "payload_chars": len(payload)})

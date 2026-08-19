@@ -19,10 +19,10 @@ from llmqa.harnesses import RAGCorpus, RAGHarness, RetrievalQuery
 def _build(ctx: TestContext):
     """基于共享语料 + 查询集构建 harness（k=4）与查询列表。"""
     corpus = RAGCorpus.from_dicts(ctx.datasets.load("rag/corpus")["documents"])
-    client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="占位回复")])
+    client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="占位回复")])  # 检索阶段不调用生成，占位回复仅保证 harness 构造完整
     harness = RAGHarness(corpus, client, prompt_manager=ctx.prompts,
                          prompt_id="rag/answer", chunk_size=400, overlap=80, top_k=4)
-    queries = [RetrievalQuery(**q) for q in ctx.datasets.load("rag/queries")["queries"]]
+    queries = [RetrievalQuery(**q) for q in ctx.datasets.load("rag/queries")["queries"]]  # **q 展开数据集字段构造查询对象，字段需与 RetrievalQuery 签名一致
     return harness, queries
 
 
@@ -75,7 +75,7 @@ async def retrieval_mean_precision(ctx: TestContext) -> None:
     """
     harness, queries = _build(ctx)
     m = harness.evaluate_retrieval(queries, k=4)
-    if m.mean_precision_at_k < 0.2:
+    if m.mean_precision_at_k < 0.2:  # 单相关文档查询在 k=4 下精确率上限 1/4，故阈值降至 0.2（见模块 docstring）
         raise AssertionFailed(
             "平均精确率 {:.2f} 低于阈值 0.2".format(m.mean_precision_at_k),
             metrics={"mean_precision_at_k": m.mean_precision_at_k})
@@ -88,8 +88,8 @@ async def retrieval_cross_doc_recall(ctx: TestContext) -> None:
     """断言 rq-007（退货+保修）能同时召回 doc-return 与 doc-warranty。"""
     harness, queries = _build(ctx)
     m = harness.evaluate_retrieval(queries, k=4)
-    pq = next(p for p in m.per_query if p["id"] == "rq-007")
-    if pq["recall_at_k"] != 1.0:
+    pq = next(p for p in m.per_query if p["id"] == "rq-007")  # per_query 逐查询给出指标，用 next 取跨文档查询 rq-007
+    if pq["recall_at_k"] != 1.0:  # 跨文档查询要求两个相关文档全部命中，必须严格等于 1.0 而非 ≥
         raise AssertionFailed(
             "rq-007 跨文档召回 {:.2f} 未达到 1.0，检索到: {}".format(
                 pq["recall_at_k"], pq["retrieved_docs"]),

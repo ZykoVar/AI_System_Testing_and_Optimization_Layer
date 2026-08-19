@@ -28,6 +28,7 @@ async def case_long_success(ctx: TestContext) -> None:
     payload = _long_payload(ctx)
     client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="长上下文处理成功。")])
     resp = await client.generate([Message.user(payload)], max_tokens=256)
+    # 长提示请求的核心验收：能否正常返回非空文本（不被截断或直接失败）
     if not resp.text:
         raise AssertionFailed("长载荷请求返回空回复",
                               metrics={"prompt_tokens": resp.usage.prompt_tokens,
@@ -43,10 +44,12 @@ async def case_long_latency(ctx: TestContext) -> None:
     client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="长上下文回复。")])
     stats = await run_load(lambda i: client.generate([Message.user(payload)], max_tokens=128),
                            concurrency=4, count=20)
+    # 先拦截请求错误：有错误时延迟分位不可信，直接失败而非继续比较阈值
     if stats.errors:
         raise AssertionFailed("长载荷压测出现错误: {}".format(stats.error_messages[:3]),
                               metrics={"errors": stats.errors, "error_rate": stats.error_rate})
     p95 = stats.latency.get("p95_ms", 0.0)
+    # 长上下文允许更高延迟，但仍封顶在 2× 常规阈值，防止长载荷退化失控
     limit = 2 * ctx.settings.thresholds.p95_latency_ms
     if p95 >= limit:
         raise AssertionFailed("长载荷 P95 延迟 {:.1f}ms 超过 2× 阈值 {:.1f}ms".format(p95, limit),

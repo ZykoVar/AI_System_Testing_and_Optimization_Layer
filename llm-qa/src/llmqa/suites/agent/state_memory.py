@@ -18,12 +18,15 @@ from llmqa.harnesses import AgentHarness
       tags=("memory",), severity=Severity.MEDIUM, timeout=60)
 async def session_history_referenced(ctx: TestContext) -> None:
     """断言：最终答案引用历史对话中的关键信息（颜色偏好）。"""
+    # match_transcript=True：规则在含 session_history 的整段转录上匹配——只有历史被正确注入，
+    # "蓝色"才会出现在转录里并命中该规则（否则落入默认回复，断言失败）
     client = scripted_or_real(ctx, rules=[
         MockRule(match=r"蓝色", reply="根据我们的历史对话，你最喜欢的颜色是蓝色。",
                  match_transcript=True),
     ])
     harness = AgentHarness(client, [], system_prompt="你是助手，能记住对话历史。",
                            max_iterations=4)
+    # 当前提问不含答案，必须从 session_history 取回颜色偏好，验证多轮状态被正确传递
     history = [Message.user("我最喜欢的颜色是蓝色。"),
                Message.assistant("好的，我记住了。")]
     trace = await harness.run("我之前说过我最喜欢什么颜色？", session_history=history)
@@ -42,6 +45,7 @@ async def pronoun_resolution(ctx: TestContext) -> None:
     ])
     harness = AgentHarness(client, [], system_prompt="你是助手，能结合上下文理解指代。",
                            max_iterations=4)
+    # "它"是模糊指代：只有结合历史中的 iPhone 17 才能正确消解，验证上下文参与推理
     history = [Message.user("最近发布的 iPhone 17 怎么样？"),
                Message.assistant("iPhone 17 是一款新手机。")]
     trace = await harness.run("那它的续航怎么样？", session_history=history)

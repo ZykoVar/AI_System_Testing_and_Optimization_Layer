@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ToolCall(BaseModel):
     """模型发起的一次工具调用。"""
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])  # 截断 UUID 以缩短请求体，碰撞风险可接受
     name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
 
@@ -24,9 +24,9 @@ class Message(BaseModel):
     """OpenAI 风格的多轮对话消息。"""
     role: str                                    # system | user | assistant | tool
     content: str = ""
-    name: str | None = None
-    tool_calls: list[ToolCall] | None = None
-    tool_call_id: str | None = None
+    name: str | None = None                      # 工具名，仅 role=tool 时有意义
+    tool_calls: list[ToolCall] | None = None     # 仅 role=assistant 且模型选择调用工具时非空
+    tool_call_id: str | None = None              # 关联上一条 assistant 工具调用，仅 role=tool 时使用
 
     @classmethod
     def system(cls, content: str) -> "Message":
@@ -46,6 +46,7 @@ class Message(BaseModel):
 
 
 class TokenUsage(BaseModel):
+    """一次调用的 token 用量；兼容 OpenAI 风格字段命名。"""
     prompt_tokens: int = 0
     completion_tokens: int = 0
 
@@ -60,12 +61,12 @@ class LLMResponse(BaseModel):
 
     text: str = ""
     tool_calls: list[ToolCall] = Field(default_factory=list)
-    finish_reason: str | None = None
+    finish_reason: str | None = None      # stop | tool_calls | length 等，由各 Provider 定义
     usage: TokenUsage = Field(default_factory=TokenUsage)
-    latency_ms: float = 0.0
-    cost_usd: float | None = None
-    model: str | None = None
-    raw: dict[str, Any] = Field(default_factory=dict)
+    latency_ms: float = 0.0               # 端到端耗时，性能测试据此统计 P95/P99
+    cost_usd: float | None = None         # None 表示无法估算（如未配置 pricing）
+    model: str | None = None              # Provider 实际返回的模型名，可能因别名重写
+    raw: dict[str, Any] = Field(default_factory=dict)  # Provider 原始响应，供调试与审计
 
 
 class StreamChunk(BaseModel):
@@ -118,6 +119,7 @@ class LLMClient(abc.ABC):
         """流式生成。默认实现按词切分 generate 结果，适配器可覆盖为真流式。"""
         resp = await self.generate(messages, temperature=temperature, max_tokens=max_tokens, stop=stop)
         words = resp.text.split(" ")
+        # 默认实现非真流式：先完整生成，再按每 8 词切块模拟增量，避免依赖具体分词器。
         for i in range(0, len(words), 8):
             chunk = " ".join(words[i:i + 8])
             yield StreamChunk(text_delta=chunk + (" " if i + 8 < len(words) else ""))

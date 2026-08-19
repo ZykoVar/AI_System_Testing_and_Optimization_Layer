@@ -19,6 +19,7 @@ from llmqa.harnesses import AgentHarness, Tool
       tags=("tool-arguments", "smoke"), severity=Severity.HIGH, timeout=60)
 async def required_argument_passed(ctx: TestContext) -> None:
     """断言：handler 收到完整必填参数 city，观测含 OK。"""
+    # handler 内部再次校验：它是"必填参数确已传递"的权威，不依赖 harness 的 schema 校验
     def weather_handler(city: str) -> str:
         if not city or not isinstance(city, str):
             return "FAIL: 缺少必填参数 city"
@@ -65,6 +66,7 @@ async def integer_argument_type(ctx: TestContext) -> None:
     trace = await harness.run("请计算 3 加 5 等于多少")
     assert trace.tool_results, "未产生任何工具观测"
     assert_contains(trace.tool_results[0].output, "OK")
+    # JSON 序列化可能把 int 强转成 str，这里显式断言类型，捕获字符串强制转换
     assert trace.tool_results[0].arguments == {"a": 3, "b": 5}, "参数应保持为整数"
     assert isinstance(trace.tool_results[0].arguments["a"], int), "参数 a 应为 int"
 
@@ -74,6 +76,7 @@ async def integer_argument_type(ctx: TestContext) -> None:
       tags=("tool-arguments",), severity=Severity.MEDIUM, timeout=60)
 async def tool_exception_recovery(ctx: TestContext) -> None:
     """断言：工具异常观测含[工具异常]，且 Agent 恢复给出最终答案。"""
+    # 故意抛异常：验证 harness 把异常转为含 "[工具异常]" 的观测而非让整轮运行崩溃
     def broken_handler(city: str) -> str:
         raise RuntimeError("数据库连接失败")
 
@@ -92,5 +95,6 @@ async def tool_exception_recovery(ctx: TestContext) -> None:
     trace = await harness.run("北京今天天气怎么样？")
     assert trace.tool_results, "未产生任何工具观测"
     assert_contains(trace.tool_results[0].output, "[工具异常]")
+    # 关键：异常仅作为观测，不应中断整轮；Agent 应基于异常观测继续给出最终答案
     assert trace.success, "工具异常后 Agent 应恢复并给出最终答案"
     assert_contains(trace.final_answer, "无法获取")

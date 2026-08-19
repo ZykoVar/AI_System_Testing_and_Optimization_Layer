@@ -11,6 +11,7 @@ from llmqa.core.models import Severity, TestContext
 from llmqa.core.registry import test
 from llmqa.harnesses import RAGCorpus, RAGHarness
 
+# golden 答案的关键词快照：用于校验端到端生成内容不丢失关键事实（数字/短语）。
 _GOLDEN_KEYWORDS = {
     "rq-001": ["7 天", "无理由退货"],
     "rq-002": ["299"],
@@ -30,7 +31,7 @@ def _harness(ctx: TestContext, reply: str) -> RAGHarness:
       tags=("rag", "e2e", "smoke"), severity=Severity.MEDIUM, timeout=60)
 async def golden_consistency(ctx: TestContext) -> None:
     """断言 rq-001..003 的回复包含 golden_answer 的关键词。"""
-    queries = {q["id"]: q for q in ctx.datasets.load("rag/queries")["queries"]}
+    queries = {q["id"]: q for q in ctx.datasets.load("rag/queries")["queries"]}  # 先建 id→条目 映射，循环内 O(1) 取用
     for qid in ("rq-001", "rq-002", "rq-003"):
         q = queries[qid]
         harness = _harness(ctx, q["golden_answer"])
@@ -56,8 +57,8 @@ async def e2e_latency(ctx: TestContext) -> None:
     """断言单次端到端生成延迟低于 P95 阈值。"""
     harness = _harness(ctx, "根据资料，专业版每月 299 元。[资料1]")
     resp = await harness.answer("专业版订阅一个月多少钱？", k=4)
-    limit = ctx.settings.thresholds.p95_latency_ms
-    if resp.latency_ms >= limit:
+    limit = ctx.settings.thresholds.p95_latency_ms  # 延迟阈值取全局配置；mock 下近乎 0，真实 provider 下才有约束力
+    if resp.latency_ms >= limit:  # 用 ≥ 而非 >，命中阈值即判超标，边界值从严
         raise AssertionFailed(
             "端到端延迟 {:.1f}ms ≥ 阈值 {:.1f}ms".format(resp.latency_ms, limit),
             metrics={"latency_ms": resp.latency_ms})
@@ -71,7 +72,7 @@ async def batch_queries_no_error(ctx: TestContext) -> None:
     corpus = RAGCorpus.from_dicts(ctx.datasets.load("rag/corpus")["documents"])
     client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="根据资料作答。[资料1]")])
     harness = RAGHarness(corpus, client, prompt_manager=ctx.prompts, prompt_id="rag/answer")
-    for q in ctx.datasets.load("rag/queries")["queries"][:5]:
+    for q in ctx.datasets.load("rag/queries")["queries"][:5]:  # 取前 5 条做批量稳定性抽检，避免全量运行拉长耗时
         resp = await harness.answer(q["query"], k=4)
         if not resp.text:
             raise AssertionFailed("查询 {} 返回空回复".format(q["id"]))

@@ -43,10 +43,12 @@ class ABChange(BaseModel):
     direction: str = "unchanged"   # regression | improvement | metric_drift | message_change | unchanged
     message_a: str = ""
     message_b: str = ""
-    metric_diffs: dict[str, dict[str, float]] = Field(default_factory=dict)
+    metric_diffs: dict[str, dict[str, float]] = Field(default_factory=dict)   # 数值指标漂移（metric → {a,b}）
 
 
 class ABTestResult(BaseModel):
+    """一次 A/B 对比的汇总：计数、运行标识与逐用例差异列表。"""
+
     prompt_id: str
     version_a: int
     version_b: int
@@ -61,16 +63,19 @@ class ABTestResult(BaseModel):
     changes: list[ABChange] = Field(default_factory=list)
 
     def summary_text(self) -> str:
+        """一行中文摘要，供报告标题与日志输出使用。"""
         return ("Prompt {pid} v{a} vs v{b} | 共 {t} 例 | 未变化 {u} | 回归 {r} | "
                 "改善 {i} | 指标漂移 {m}").format(
             pid=self.prompt_id, a=self.version_a, b=self.version_b, t=self.total,
             u=self.unchanged, r=self.regressions, i=self.improvements, m=self.metric_drifts)
 
     def by_direction(self, direction: str) -> list[ABChange]:
+        """按方向（regression/improvement/metric_drift/message_change/unchanged）筛选差异。"""
         return [c for c in self.changes if c.direction == direction]
 
 
 def _compare(a: TestOutcome, b: TestOutcome) -> ABChange:
+    """比较同一用例在 A/B 两次运行的结果，判定方向（回归/改善/指标漂移/消息变化/不变）。"""
     base = dict(case_id=a.case_id, name=a.name, suite=a.suite, severity=a.severity,
                 verdict_a=a.verdict, verdict_b=b.verdict, message_a=a.message, message_b=b.message)
     sa, sb = _VERDICT_SCORE[a.verdict], _VERDICT_SCORE[b.verdict]
@@ -112,6 +117,7 @@ def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,
 
     def make_ctx_factory(pin_version: int, tag: str):
         pm = PromptManager(root / "prompts").load()
+        # 钉住全局默认渲染版本：未显式指定 version 的 render() 会解析到该版本。
         pm.pin(prompt_id, pin_version)
 
         def ctx_factory() -> TestContext:
@@ -138,6 +144,7 @@ def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,
     report_b = one_run(version_b, "ab-b")
     outcomes_a = {o.case_id: o for o in report_a.outcomes}
     outcomes_b = {o.case_id: o for o in report_b.outcomes}
+    # 只对比两次运行都实际产出的用例，避免某侧缺失被误判为回归。
     common = sorted(set(outcomes_a) & set(outcomes_b))
     changes = [_compare(outcomes_a[cid], outcomes_b[cid]) for cid in common]
     result = ABTestResult(
@@ -158,6 +165,7 @@ def render_ab_report(result: ABTestResult, out_dir: Path) -> dict[str, Path]:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    # prompt_id 中的 "/" 被替换为 "-"，避免路径嵌套导致文件名无法生成。
     stem = "abtest-{}-{}-v{}-vs-v{}".format(
         stamp, result.prompt_id.replace("/", "-"), result.version_a, result.version_b)
     md_path = out_dir / (stem + ".md")
@@ -169,6 +177,7 @@ def render_ab_report(result: ABTestResult, out_dir: Path) -> dict[str, Path]:
 
 
 def _render_markdown(result: ABTestResult) -> str:
+    """把 A/B 结果渲染为 Markdown 报告正文。"""
     lines = [
         "# Prompt A/B 测试报告",
         "",

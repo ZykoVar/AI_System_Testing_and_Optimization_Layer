@@ -23,11 +23,11 @@ async def retrieval_top1_relevant(ctx: TestContext) -> None:
     queries = {q["id"]: q for q in ctx.datasets.load("rag/queries")["queries"]}
     for qid in ("rq-001", "rq-002", "rq-003"):
         q = queries[qid]
-        result = await harness.retrieve(q["query"], k=1)
+        result = await harness.retrieve(q["query"], k=1)  # k=1 只取 top1，校验最相关文档是否命中标注
         if not result.chunks:
             raise AssertionFailed("{} 检索结果为空".format(qid))
-        top_doc = result.chunks[0].doc_id
-        if top_doc not in q["relevant_doc_ids"]:
+        top_doc = result.chunks[0].doc_id  # retrieve 按 BM25 分数降序返回，chunks[0] 即 top1
+        if top_doc not in q["relevant_doc_ids"]:  # 用 doc 粒度（非 chunk）判断命中，容忍同文档被切成多块
             raise AssertionFailed(
                 "{} top1 文档 {} 不在相关文档 {} 中".format(qid, top_doc, q["relevant_doc_ids"]),
                 metrics={"top1_hit": 0})
@@ -55,12 +55,12 @@ async def answer_relevance(ctx: TestContext) -> None:
       tags=("rag", "relevance"), severity=Severity.HIGH, timeout=60)
 async def empty_context_no_hard_answer(ctx: TestContext) -> None:
     """断言空语料检索为空、build_context 为空串，且 answer 回复含拒答话术。"""
-    corpus = RAGCorpus.from_dicts([])
+    corpus = RAGCorpus.from_dicts([])  # 空语料构造空库，验证检索为空时的降级路径
     client = scripted_or_real(ctx, rules=[
         MockRule(match=".*", reply="抱歉，当前没有可用资料，无法回答您的问题。")])
     harness = RAGHarness(corpus, client, prompt_manager=ctx.prompts, prompt_id="rag/answer")
     result = await harness.retrieve("任意问题", k=4)
-    if harness.build_context(result) != "":
+    if harness.build_context(result) != "":  # 空结果集下 build_context 必须返回空串，否则会把空资料占位注入提示词
         raise AssertionFailed("空语料下 build_context 应为空串，实际: {!r}".format(
             harness.build_context(result)))
     resp = await harness.answer("任意问题", k=4)

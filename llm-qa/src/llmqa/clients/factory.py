@@ -12,10 +12,12 @@ if TYPE_CHECKING:
 
 
 def build_client(provider: ProviderConfig) -> LLMClient:
+    """按 Provider 配置的 kind 构建对应客户端；未知 kind 抛 LLMError。"""
     kind = provider.kind
     if kind == "mock":
         return MockClient(name=provider.name, model=provider.resolve_model())
     if kind == "openai_compat":
+        # 延迟导入：只在真正需要时引入，减少无用依赖与潜在循环导入风险。
         from llmqa.clients.openai_compat import OpenAICompatClient
         if not provider.base_url:
             raise LLMError(provider.name, "openai_compat 需要配置 base_url")
@@ -26,7 +28,7 @@ def build_client(provider: ProviderConfig) -> LLMClient:
             pricing=provider.pricing,
         )
     if kind == "anthropic":
-        from llmqa.clients.anthropic import AnthropicClient
+        from llmqa.clients.anthropic import AnthropicClient  # 同上，延迟导入
         return AnthropicClient(
             provider.name, provider.resolve_model(), api_key=provider.api_key,
             base_url=provider.base_url or "https://api.anthropic.com",
@@ -59,8 +61,10 @@ class ClientPool:
         self._cache: dict[str, LLMClient] = {}
 
     def get(self, name: str | None = None) -> LLMClient:
+        """按名称返回缓存的客户端；未指定名称时使用默认 Provider。"""
         name = name or self.settings.default_provider
         if name not in self._cache:
+            # 缓存连接池：同一 Provider 复用同一 httpx 客户端，避免反复建连。
             self._cache[name] = build_client(self.settings.provider(name))
         return self._cache[name]
 

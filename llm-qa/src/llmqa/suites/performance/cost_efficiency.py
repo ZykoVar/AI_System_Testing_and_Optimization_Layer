@@ -25,6 +25,7 @@ async def case_single_cost(ctx: TestContext) -> None:
     client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="成本测试回复。")])
     resp = await client.generate([Message.user(payload)])
     cost = resp.cost_usd
+    # mock 下 cost 恒为 0；真实 Provider 未配 pricing 时无法估算，显式 SKIP 而非误判
     if cost is None:
         raise SkipTest("Provider 未配置 pricing，无法估算单请求成本")
     limit = ctx.settings.thresholds.cost_per_request_usd
@@ -43,10 +44,11 @@ async def case_batch_cost(ctx: TestContext) -> None:
     stats = await run_load(lambda i: client.generate([Message.user(payload)]),
                            concurrency=8, count=50)
     mean = stats.mean_cost_usd
+    # run_load 只有收集到 cost 才给出 mean；无 pricing 时 mean 为 None，显式 SKIP
     if mean is None:
         raise SkipTest("Provider 未配置 pricing，无法估算批量成本")
     total = mean * stats.requests
-    budget = 0.5
+    budget = 0.5  # 批量 50 请求的成本护栏预算（固定 0.5 USD）
     if total > budget:
         raise AssertionFailed(
             "批量估算总成本 {:.6f} USD 超过预算 {:.2f} USD".format(total, budget),

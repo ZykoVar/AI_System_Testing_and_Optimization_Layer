@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from llmqa.core.registry import discover  # noqa: E402
 from llmqa.suites import DEFAULT_PACKAGES  # noqa: E402
 
+# 套件 ID → 中文展示名与说明，供生成的目录文档引用
 SUITE_NAMES = {
     "llm": "LLM 功能与质量",
     "rag": "RAG 专项",
@@ -31,8 +32,10 @@ SUITE_DESC = {
 
 
 def main() -> int:
+    """发现全部用例并按套件分组，生成 Markdown 测试目录。"""
     out_path = Path(sys.argv[1]) if len(sys.argv) > 1 else (
         Path(__file__).resolve().parents[1] / "docs" / "test-catalog.md")
+    # discover 触发各套件模块的 @test 注册，返回全部用例
     cases = discover(DEFAULT_PACKAGES)
     by_suite: dict[str, list] = defaultdict(list)
     for c in cases:
@@ -62,6 +65,7 @@ def main() -> int:
             lines.append("| {} | {} | {} | {} |".format(
                 c.id, c.name, c.severity.value, tags))
         lines.append("")
+    # 整份文档一次性写出，保证原子性（避免半写状态被误读）
     out_path.write_text("\n".join(lines), encoding="utf-8")
     print("已生成 {}（{} 个用例）".format(out_path, len(cases)))
     return 0

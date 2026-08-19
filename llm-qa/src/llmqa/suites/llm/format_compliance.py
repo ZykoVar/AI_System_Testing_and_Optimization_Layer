@@ -23,7 +23,7 @@ from llmqa.core.models import Severity, TestContext
 from llmqa.core.registry import test
 
 # 代码围栏字面量（避免在源码中直接写反引号）
-_FENCE = chr(96) * 3
+_FENCE = chr(96) * 3  # 三反引号围栏的共享字面量，避免各用例重复拼写
 
 
 @test(
@@ -46,14 +46,14 @@ async def json_output_schema(ctx: TestContext) -> None:
     )
     schema = {
         "type": "object",
-        "required": ["name", "price"],
+        "required": ["name", "price"],  # in_stock 刻意不列为必填：同时校验必填缺失与可选字段类型
         "properties": {
             "name": {"type": "string"},
             "price": {"type": "integer", "minimum": 0},
             "in_stock": {"type": "boolean"},
         },
     }
-    assert_json_schema(resp.text, schema)
+    assert_json_schema(resp.text, schema)  # 宽松解析（剥围栏/取首个对象）后按 Schema 校验，并返回解析后的对象
 
 
 @test(
@@ -74,7 +74,7 @@ async def list_format(ctx: TestContext) -> None:
         [Message.user("请用列表逐条列出 Acme 的三项服务特点。")],
         temperature=0.0, max_tokens=512,
     )
-    assert_matches(resp.text, r"(?m)^\s*[-*•]\s+")
+    assert_matches(resp.text, r"(?m)^\s*[-*•]\s+")  # (?m) 多行模式逐行校验列表标记；\s* 容忍缩进
     assert_contains(resp.text, "7 天无理由退货", "3-5 个工作日", "9:00-18:00")
 
 
@@ -96,7 +96,7 @@ async def no_markdown(ctx: TestContext) -> None:
         [Message.user("请用纯文本回答 Acme 的退货政策，不要使用任何 Markdown 标记。")],
         temperature=0.0, max_tokens=512,
     )
-    assert_not_contains(resp.text, "#", "**", _FENCE)
+    assert_not_contains(resp.text, "#", "**", _FENCE)  # 任一 Markdown 标记出现即违规（负向硬约束）
 
 
 @test(
@@ -117,7 +117,7 @@ async def pure_number(ctx: TestContext) -> None:
         [Message.user("只输出一个数字，不要任何解释：6 乘以 7 等于多少？")],
         temperature=0.0, max_tokens=512,
     )
-    assert_matches(resp.text, r"^\s*\d+\s*$")
+    assert_matches(resp.text, r"^\s*\d+\s*$")  # 全量锚定匹配，杜绝数字前后夹带文字或解释
 
 
 @test(
@@ -147,8 +147,8 @@ async def json_chinese_comment(ctx: TestContext) -> None:
             "comment": {"type": "string", "minLength": 5},
         },
     }
-    obj = assert_json_schema(resp.text, schema)
-    assert_contains(obj["comment"], "3-5 个工作日送达")
+    obj = assert_json_schema(resp.text, schema)  # 复用校验返回的对象直接取字段，避免二次 JSON 解析
+    assert_contains(obj["comment"], "3-5 个工作日送达")  # minLength=5 只保长度，这里再校验内容完整无截断
 
 
 @test(
@@ -170,6 +170,6 @@ async def fenced_json(ctx: TestContext) -> None:
         [Message.user("请用 Markdown 代码围栏包裹 JSON，输出 Acme 总部所在城市。")],
         temperature=0.0, max_tokens=512,
     )
-    obj = assert_json_valid(resp.text)
+    obj = assert_json_valid(resp.text)  # parse_json 自动剥除围栏并截取首个 {...}，故围栏包裹也能解析
     assert obj["answer"] == "上海"
     assert obj["confidence"] == 0.95
