@@ -51,6 +51,9 @@ scripts/ci_gate.ps1        # 解析报告 JSON，按严重级判定门禁
 5. 其余 → 退出 0
 ```
 
+补充：运行间回归门禁可用 `llmqa report compare --last`（退出码 1 = 存在回归），
+与严重级门禁串联：任一拦截 → 发布受阻。
+
 ## 5. 与其他系统集成
 
 - **JUnit 消费者**（Jenkins/GitLab/Azure DevOps）：直接归档 `junit.xml`；

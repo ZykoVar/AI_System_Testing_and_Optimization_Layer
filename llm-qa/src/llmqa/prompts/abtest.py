@@ -21,15 +21,13 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from llmqa.core.models import Severity, TestContext, TestOutcome, Verdict
+from llmqa.core.compare import compare_outcomes
+from llmqa.core.models import Severity, TestContext, Verdict
 from llmqa.core.registry import discover
 from llmqa.core.reporter import Reporter
 from llmqa.core.runner import TestRunner
 from llmqa.prompts.manager import PromptManager
 from llmqa.suites import DEFAULT_PACKAGES
-
-# 判定优劣分数：PASS 最好，ERROR 最差
-_VERDICT_SCORE = {Verdict.PASS: 3, Verdict.SKIP: 2, Verdict.FAIL: 1, Verdict.ERROR: 0}
 
 
 class ABChange(BaseModel):
@@ -74,26 +72,12 @@ class ABTestResult(BaseModel):
         return [c for c in self.changes if c.direction == direction]
 
 
-def _compare(a: TestOutcome, b: TestOutcome) -> ABChange:
-    """比较同一用例在 A/B 两次运行的结果，判定方向（回归/改善/指标漂移/消息变化/不变）。"""
-    base = dict(case_id=a.case_id, name=a.name, suite=a.suite, severity=a.severity,
-                verdict_a=a.verdict, verdict_b=b.verdict, message_a=a.message, message_b=b.message)
-    sa, sb = _VERDICT_SCORE[a.verdict], _VERDICT_SCORE[b.verdict]
-    if sb < sa:
-        return ABChange(**base, direction="regression")
-    if sb > sa:
-        return ABChange(**base, direction="improvement")
-    # 判定相同：先看数值指标漂移，再看失败消息变化
-    diffs: dict[str, dict[str, float]] = {}
-    for k in sorted(set(a.metrics) | set(b.metrics)):
-        va, vb = a.metrics.get(k), b.metrics.get(k)
-        if isinstance(va, (int, float)) and isinstance(vb, (int, float)) and va != vb:
-            diffs[k] = {"a": float(va), "b": float(vb)}
-    if diffs:
-        return ABChange(**base, direction="metric_drift", metric_diffs=diffs)
-    if a.verdict in (Verdict.FAIL, Verdict.ERROR) and a.message != b.message:
-        return ABChange(**base, direction="message_change")
-    return ABChange(**base, direction="unchanged")
+def _compare(a, b) -> ABChange:
+    """比较同一用例在 A/B 两次运行的结果（复用 core.compare 的通用 diff 逻辑）。"""
+    d = compare_outcomes(a, b)
+    return ABChange(case_id=d.case_id, name=d.name, suite=d.suite, severity=d.severity,
+                    verdict_a=d.verdict_a, verdict_b=d.verdict_b, direction=d.direction,
+                    message_a=d.message_a, message_b=d.message_b, metric_diffs=d.metric_diffs)
 
 
 def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,

@@ -140,10 +140,16 @@ class MockClient(LLMClient):
             for s in stop:
                 if s and s in text:
                     text = text.split(s)[0]
+        finish_reason = "tool_calls" if tool_calls else "stop"
+        # 保真度：真实 API 会按 max_tokens 截断输出，mock 同样截断并标记 finish_reason=length，
+        # 保证"输出 token 不超上限"类用例在双态下行为一致。
+        if not tool_calls and max_tokens and self.estimate_tokens(text) > max_tokens:
+            text = text[: max(1, max_tokens * 4)]
+            finish_reason = "length"
         return LLMResponse(
             text=text,
             tool_calls=tool_calls,
-            finish_reason="tool_calls" if tool_calls else "stop",
+            finish_reason=finish_reason,
             usage=TokenUsage(
                 prompt_tokens=sum(self.estimate_tokens(m.content) for m in messages),
                 completion_tokens=self.estimate_tokens(text),

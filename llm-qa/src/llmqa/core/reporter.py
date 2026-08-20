@@ -78,6 +78,8 @@ def _to_dict(report: TestReport) -> dict:
         "duration_ms": report.duration_ms,
         "counts": report.counts,
         "pass_rate": report.pass_rate,
+        "max_cost": report.max_cost,
+        "used_cost": report.used_cost,
         "outcomes": [o.model_dump(mode="json") for o in report.outcomes],
     }
 

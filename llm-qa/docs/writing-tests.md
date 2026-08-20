@@ -79,6 +79,20 @@ verdict = await Judge(judge_client).assert_score(
 生产建议：裁判模型与被测模型解耦，固定裁判 Prompt 版本
 （`prompts/judge/correctness.yaml` 为托管模板）。
 
+Judge 两项增强用法：
+
+```python
+# 1) 走版本化托管模板（裁判 Prompt 纳入 Prompt 管理，可审计可回滚）
+judge = Judge(judge_client, prompt_manager=ctx.prompts)
+
+# 2) 关键判定开启多次投票：温度渐增取中位数，抑制单次打分噪声
+verdict = await judge.assert_score(question=q, answer=resp.text, criteria="...",
+                                   passes=3)   # verdict.scores/agreement 记录每次分与一致度
+```
+
+> 注意：托管模板与内置 Prompt 均要求裁判输出一行 JSON
+> `{"score": <分>, "reasoning": "<理由>"}`。
+
 ## 5. 测试上下文（TestContext）
 
 | 成员 | 说明 |
@@ -102,6 +116,8 @@ verdict = await Judge(judge_client).assert_score(
 6. **注册收尾**：新模块必须在 `suites/<suite>/__init__.py` 导入，
    否则 `discover` 发现不到。
 7. **写自测**：框架级变更在 `tests/` 补 pytest 用例。
+8. **声明成本**：重用例（多次 LLM 调用）用 `@test(..., cost=N)` 声明成本单位，
+   真实模型运行可加 `--max-cost` 预算控制，超预算用例自动 SKIP。
 
 ## 7. 注释规范
 

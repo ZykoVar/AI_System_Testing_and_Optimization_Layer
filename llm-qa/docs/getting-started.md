@@ -48,6 +48,14 @@ llmqa run --suite llm --exclude-tag judge       # 排除慢的裁判用例
 
 # 并发与超时
 llmqa run --suite performance --concurrency 16 --timeout 120
+
+# 真实模型成本护栏（按用例声明 cost 累计，超预算自动 SKIP）
+llmqa run --provider openai --max-cost 50
+
+# 运行间回归对比（A=基线/旧，B=当前/新；--last 自动取最近两次）
+llmqa report list
+llmqa report compare --last
+llmqa report compare <运行ID-A> <运行ID-B>
 ```
 
 ## 4. 接入真实模型

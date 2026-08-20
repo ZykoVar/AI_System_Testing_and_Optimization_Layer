@@ -112,3 +112,26 @@ def test_filtering():
     assert a.matches(suites=None, tags={"smoke"}, exclude_tags=None, min_severity=None)
     assert not b.matches(suites=None, tags={"smoke"}, exclude_tags=None, min_severity=None)
     clear_registry()
+
+
+def test_cost_budget_skips_over_budget_cases():
+    clear_registry()
+
+    @register_test(id="unit-010", suite="unit", name="预算内", cost=1)
+    async def case_cheap(ctx):
+        pass
+
+    @register_test(id="unit-011", suite="unit", name="预算外", cost=5)
+    async def case_expensive(ctx):
+        pass
+
+    # 预算 3：第一个用例（cost=1）可跑，第二个（cost=5）超支 → SKIP
+    runner = TestRunner(make_ctx, max_cost=3, retries_on_error=0)
+    report = asyncio.run(runner.run_all(get_registered_cases()))
+    verdicts = {o.case_id: o.verdict for o in report.outcomes}
+    assert verdicts["unit-010"] == Verdict.PASS
+    assert verdicts["unit-011"] == Verdict.SKIP
+    assert "预算耗尽" in next(o.message for o in report.outcomes if o.case_id == "unit-011")
+    assert report.max_cost == 3
+    assert report.used_cost == 1
+    clear_registry()

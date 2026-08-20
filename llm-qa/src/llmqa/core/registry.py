@@ -27,6 +27,7 @@ class TestCaseDef:
     timeout: float | None
     retries: int | None
     skip: bool
+    cost: int = 1   # 预估 LLM 调用次数（成本单位），供 --max-cost 预算控制
     module: str = ""
     qualname: str = field(default="")
 
@@ -60,6 +61,7 @@ def test(
     timeout: float | None = None,
     retries: int | None = None,
     skip: bool = False,
+    cost: int = 1,
 ) -> Callable:
     """用例注册装饰器。
 
@@ -84,7 +86,7 @@ def test(
             name=name or _default_name(fn),
             description=description or (fn.__doc__ or "").strip(),
             tags=frozenset(tags), severity=severity,
-            timeout=timeout, retries=retries, skip=skip,
+            timeout=timeout, retries=retries, skip=skip, cost=cost,
             module=fn.__module__, qualname=fn.__qualname__,
         )
         return fn

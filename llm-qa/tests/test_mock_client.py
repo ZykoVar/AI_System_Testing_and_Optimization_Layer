@@ -74,6 +74,23 @@ def test_transcript_matching():
     assert resp.text == "看到了工具结果"
 
 
+def test_max_tokens_truncation():
+    # 模拟真实 API 行为：长回复按 max_tokens 截断并标记 finish_reason=length
+    long_reply = "词 " * 500   # 约 1000 字符 ≈ 250 token
+    client = MockClient(default_reply=long_reply)
+    resp = run(client.generate([Message.user("hi")], max_tokens=50))
+    assert resp.finish_reason == "length"
+    assert resp.usage.completion_tokens <= 50
+    assert len(resp.text) < len(long_reply)
+
+
+def test_max_tokens_no_truncation_when_fits():
+    # 短回复不受截断影响，finish_reason 保持 stop
+    client = MockClient(default_reply="短回复")
+    resp = run(client.generate([Message.user("hi")], max_tokens=512))
+    assert resp.finish_reason == "stop"
+
+
 def test_stream():
     # 校验流式输出拼接后与默认回复一致，且末块结束原因为 stop
     client = MockClient(default_reply="hello world foo bar")

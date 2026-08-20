@@ -45,6 +45,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--concurrency", type=int, default=None)
     p_run.add_argument("--timeout", type=float, default=None, help="单用例超时（秒）")
     p_run.add_argument("--fail-fast", action="store_true")
+    p_run.add_argument("--max-cost", type=int, default=None,
+                       help="成本预算上限（按用例声明的 cost 单位累计，超预算用例 SKIP）")
     p_run.add_argument("--report-dir", default=None)
     p_run.add_argument("--no-color", action="store_true")
     p_run.add_argument("--soft", action="store_true", help="失败时仍返回退出码 0")
@@ -82,6 +84,15 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 
     p_ds = sub.add_parser("datasets", help="数据集管理")
     p_ds.add_argument("--list", action="store_true", help="列出全部数据集")
+
+    p_rep = sub.add_parser("report", help="报告查看与运行间对比")
+    rep_sub = p_rep.add_subparsers(dest="report_action", required=True)
+    rep_sub.add_parser("list", help="列出历史运行")
+    p_cmp = rep_sub.add_parser("compare", help="对比两次运行（A=基线/旧，B=当前/新）")
+    p_cmp.add_argument("run_a", nargs="?", default=None, help="基线运行 ID（reports/ 下目录名）")
+    p_cmp.add_argument("run_b", nargs="?", default=None, help="当前运行 ID")
+    p_cmp.add_argument("--last", action="store_true", help="自动取最近两次运行对比")
+    p_cmp.add_argument("--report-dir", default=None, help="报告根目录（默认 settings.report_dir）")
 
     sub.add_parser("demo", help="运行内置演示套件（mock Provider）")
     return parser
@@ -140,6 +151,7 @@ def _run(args: argparse.Namespace) -> int:
         # 显式 --timeout 优先，否则回退到配置默认
         default_timeout=args.timeout or settings.timeout_per_test,
         progress=reporter.on_case_done,
+        max_cost=args.max_cost,
     )
     report = runner.run_sync(cases, provider_name=provider_name)
     files = reporter.finalize(report)
@@ -227,6 +239,142 @@ def _prompts_abtest(args: argparse.Namespace) -> int:
     return 1 if result.regressions else 0
 
 
+def _report(args: argparse.Namespace) -> int:
+    """report 子命令：list 历史运行 / compare 两次运行回归对比。"""
+    import json
+    import datetime as dt
+
+    from llmqa.config import Settings
+    from llmqa.core.compare import OutcomeDiff, compare_outcomes, summarize_diffs
+    from llmqa.core.models import TestOutcome
+
+    root = _resolve_root(args.config)
+    settings = Settings.load(args.config or (root / "config"))
+    # --report-dir 只在 compare 子命令定义，list 无此参数，故用 getattr 兜底
+    report_dir = Path(getattr(args, "report_dir", None) or "") if getattr(
+        args, "report_dir", None) else (root / settings.report_dir)
+
+    # ---- list：按时间倒序列出全部运行 ----
+    if args.report_action == "list":
+        runs = sorted((d for d in report_dir.glob("*/report.json") if d.parent.name != "compare"),
+                      key=lambda p: p.stat().st_mtime, reverse=True)
+        print("共 {} 次运行:".format(len(runs)))
+        for p in runs:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            counts = data["counts"]
+            print("  {:<22} {}  通过 {}/{}/{}/{}/{:<3} 通过率 {:.0%}".format(
+                p.parent.name, data.get("provider", "?"), counts["PASS"], counts["FAIL"],
+                counts["ERROR"], counts["SKIP"], len(data["outcomes"]), data["pass_rate"]))
+        return 0
+
+    # ---- compare：A（基线） vs B（当前） ----
+    if args.last:
+        runs = sorted((d for d in report_dir.glob("*/report.json") if d.parent.name != "compare"),
+                      key=lambda p: p.stat().st_mtime)
+        if len(runs) < 2:
+            print("历史运行不足 2 次，无法对比")
+            return 2
+        run_a, run_b = runs[-2].parent.name, runs[-1].parent.name
+    elif args.run_a and args.run_b:
+        run_a, run_b = args.run_a, args.run_b
+    else:
+        print("用法: llmqa report compare <基线ID> <当前ID> | --last")
+        return 2
+
+    def load(run_id: str) -> dict:
+        path = report_dir / run_id / "report.json"
+        if not path.exists():
+            print("报告不存在: " + str(path))
+            raise SystemExit(2)
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    data_a, data_b = load(run_a), load(run_b)
+    # 预算差异提示：max_cost 不同的运行对比会产生大量"预算跳过"噪声
+    if data_a.get("max_cost") != data_b.get("max_cost"):
+        print("注意: 两次运行的 max_cost 不同（{} vs {}），预算跳过可能被计为回归噪声".format(
+            data_a.get("max_cost"), data_b.get("max_cost")))
+    outcomes_a = {o["case_id"]: TestOutcome.model_validate(o) for o in data_a["outcomes"]}
+    outcomes_b = {o["case_id"]: TestOutcome.model_validate(o) for o in data_b["outcomes"]}
+    common = sorted(set(outcomes_a) & set(outcomes_b))
+    only_a = sorted(set(outcomes_a) - set(outcomes_b))
+    only_b = sorted(set(outcomes_b) - set(outcomes_a))
+    diffs = [compare_outcomes(outcomes_a[cid], outcomes_b[cid]) for cid in common]
+    counts = summarize_diffs(diffs)
+
+    # 输出对比报告（markdown + json）
+    out_dir = report_dir / "compare"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    stem = "compare-{}-{}-vs-{}".format(stamp, run_a, run_b)
+    md_path = out_dir / (stem + ".md")
+    json_path = out_dir / (stem + ".json")
+    md_path.write_text(_render_compare_md(run_a, run_b, diffs, counts, only_a, only_b),
+                       encoding="utf-8")
+    json_path.write_text(json.dumps({
+        "run_a": run_a, "run_b": run_b, "counts": counts,
+        "only_in_a": only_a, "only_in_b": only_b,
+        "diffs": [d.model_dump(mode="json") for d in diffs],
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    print("对比 {a}（基线） vs {b}（当前） | 共 {t} 例 | 回归 {r} | 改善 {i} | "
+          "指标漂移 {m} | 消息变化 {c} | 未变化 {u}".format(
+              a=run_a, b=run_b, t=counts["total"], r=counts["regressions"],
+              i=counts["improvements"], m=counts["metric_drifts"],
+              c=counts["message_changes"], u=counts["unchanged"]))
+    if only_a:
+        print("仅基线有（用例被移除）: " + ", ".join(only_a[:10]))
+    if only_b:
+        print("仅当前有（新增用例）: " + ", ".join(only_b[:10]))
+    print("对比报告: " + str(md_path))
+    return 1 if counts["regressions"] else 0
+
+
+def _render_compare_md(run_a: str, run_b: str, diffs: list,
+                       counts: dict, only_a: list, only_b: list) -> str:
+    """渲染运行间对比 Markdown 报告。"""
+    lines = [
+        "# 运行对比报告",
+        "",
+        "- 基线（旧）: {}  当前（新）: {}".format(run_a, run_b),
+        "- 结论: 共 {total} 例 | 回归 {regressions} | 改善 {improvements} | "
+        "指标漂移 {metric_drifts} | 消息变化 {message_changes} | 未变化 {unchanged}".format(
+            **counts),
+        "",
+    ]
+
+    def section(title: str, items: list) -> None:
+        lines.append("## {}（{} 例）".format(title, len(items)))
+        lines.append("")
+        if not items:
+            lines.append("无")
+        for d in items:
+            lines.append("- **{}** {}（{}）: {} → {}".format(
+                d.case_id, d.name, d.severity.value, d.verdict_a.value, d.verdict_b.value))
+            if d.message_a or d.message_b:
+                lines.append("  - A: {}".format(d.message_a[:150]))
+                lines.append("  - B: {}".format(d.message_b[:150]))
+            for metric, pair in d.metric_diffs.items():
+                lines.append("  - {}: {} → {}".format(metric, pair["a"], pair["b"]))
+        lines.append("")
+
+    section("回归（基线通过/更优 → 当前失败/更差）",
+            [d for d in diffs if d.direction == "regression"])
+    section("改善", [d for d in diffs if d.direction == "improvement"])
+    section("指标漂移", [d for d in diffs if d.direction == "metric_drift"])
+    section("失败消息变化", [d for d in diffs if d.direction == "message_change"])
+    if only_a:
+        lines.append("## 仅基线存在（被移除的用例）")
+        lines.append("")
+        lines.append(", ".join(only_a))
+        lines.append("")
+    if only_b:
+        lines.append("## 仅当前存在（新增用例）")
+        lines.append("")
+        lines.append(", ".join(only_b))
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def _datasets(args: argparse.Namespace) -> int:
     """执行 datasets 子命令：逐行打印全部数据集名称。"""
     from llmqa.datasets import DatasetManager
@@ -251,6 +399,8 @@ def main(argv: list[str] | None = None) -> int:
         return _prompts(args)
     if args.command == "datasets":
         return _datasets(args)
+    if args.command == "report":
+        return _report(args)
     if args.command == "demo":
         return _demo(args)
     return 0

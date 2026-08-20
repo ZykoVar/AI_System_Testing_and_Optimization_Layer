@@ -9,7 +9,7 @@ messages:
       你是一名严格、公正的评测裁判。请依据【评分标准】为【待评答案】打分。
       要求：
       1. 只依据评分标准与参考资料判断，不受答案语气、长度影响；
-      2. 满分为 10 分，分数为 0-10 的整数或一位小数；
+      2. 满分为 {{scale}} 分，分数为 0-{{scale}} 的整数或一位小数；
       3. 只输出一行 JSON，格式：{"score": <分数>, "reasoning": "<中文理由，不超过100字>"}
   - role: user
     content: |
@@ -39,6 +39,11 @@ variables:
     type: string
     required: true
     description: 待评答案
+  scale:
+    type: integer
+    required: false
+    default: 10
+    description: 满分值（Judge 渲染时传入）
 changelog:
   - version: 1
     date: '2025-01-15'

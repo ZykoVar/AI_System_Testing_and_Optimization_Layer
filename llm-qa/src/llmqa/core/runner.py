@@ -21,6 +21,8 @@ class TestReport(BaseModel):
     started_at: str
     duration_ms: float = 0.0
     outcomes: list[TestOutcome] = Field(default_factory=list)
+    max_cost: int | None = None   # --max-cost 预算上限（None 表示不限）
+    used_cost: int = 0            # 实际消耗的成本单位（按用例声明 cost 累计）
 
     @property
     def counts(self) -> dict[str, int]:
@@ -51,6 +53,8 @@ class TestReport(BaseModel):
             f"运行 {len(self.outcomes)} 个用例 | 通过 {c['PASS']} | 失败 {c['FAIL']} | "
             f"错误 {c['ERROR']} | 跳过 {c['SKIP']} | 通过率 {self.pass_rate:.1%}",
         ]
+        if self.max_cost is not None:
+            lines.append(f"成本预算: 已用 {self.used_cost} / 上限 {self.max_cost}")
         # 按严重度降序排列，只展示前 10 条，避免控制台被刷屏。
         fails = sorted(self.failures, key=lambda o: -o.severity.rank)
         for o in fails[:10]:
@@ -75,6 +79,7 @@ class TestRunner:
         retries_on_error: int = 1,
         default_timeout: float = 90.0,
         progress: Callable[[TestOutcome], None] | None = None,
+        max_cost: int | None = None,
     ):
         self.ctx_factory = ctx_factory
         self.concurrency = max(1, concurrency)  # 并发至少为 1，避免信号量阻塞全部任务。
@@ -82,6 +87,10 @@ class TestRunner:
         self.retries_on_error = retries_on_error
         self.default_timeout = default_timeout
         self.progress = progress or (lambda o: None)
+        # 成本预算：按用例声明 cost 累计，超预算的用例记为 SKIP（真实模型夜间回归防烧钱）
+        self.max_cost = max_cost
+        self.used_cost = 0
+        self._cost_lock = asyncio.Lock()
 
     async def _run_one(self, case: TestCaseDef) -> TestOutcome:
         """执行单个用例并归一化为 TestOutcome；任何异常都被捕获，绝不外抛。"""
@@ -149,6 +158,19 @@ class TestRunner:
                         verdict=Verdict.SKIP, message="fail-fast：前置高危失败，未执行",
                     ))
                     return
+                if self.max_cost is not None:
+                    # 预算扣减必须先于执行（原子操作），避免并发下超支。
+                    async with self._cost_lock:
+                        if self.used_cost + case.cost > self.max_cost:
+                            outcomes.append(TestOutcome(
+                                case_id=case.id, name=case.name, suite=case.suite,
+                                tags=sorted(case.tags), severity=case.severity,
+                                verdict=Verdict.SKIP,
+                                message="成本预算耗尽：已用 {}/{}，本用例需 {}".format(
+                                    self.used_cost, self.max_cost, case.cost),
+                            ))
+                            return
+                        self.used_cost += case.cost
                 outcome = await self._run_one(case)
                 outcomes.append(outcome)
                 if (self.fail_fast and outcome.verdict in (Verdict.FAIL, Verdict.ERROR)
@@ -164,6 +186,8 @@ class TestRunner:
             started_at=dt.datetime.now().isoformat(timespec="seconds"),
             duration_ms=(time.perf_counter() - start) * 1000,
             outcomes=sorted(outcomes, key=lambda o: (o.suite, o.case_id)),
+            max_cost=self.max_cost,
+            used_cost=self.used_cost,
         )
 
     def run_sync(self, cases: list[TestCaseDef], provider_name: str = "default") -> TestReport:
