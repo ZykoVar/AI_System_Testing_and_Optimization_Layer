@@ -116,7 +116,7 @@ class Settings(BaseModel):
     thresholds: Thresholds = Field(default_factory=Thresholds)
 
     @classmethod
-    def load(cls, config_dir: str | Path | None = None) -> "Settings":
+    def load(cls, config_dir: str | Path | None = None) -> Settings:
         """加载并合并 settings.yaml 与 providers.yaml，返回完整设置。"""
         if config_dir is None:
             config_dir = repo_root() / "config"

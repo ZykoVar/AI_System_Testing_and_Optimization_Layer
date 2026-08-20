@@ -36,12 +36,12 @@ async def case_p95_latency(ctx: TestContext) -> None:
                            concurrency=8, count=50)
     # 先拦截请求错误：有错误时延迟分位已不可信，直接失败而非继续比较阈值
     if stats.errors:
-        raise AssertionFailed("压测出现错误: {}".format(stats.error_messages[:3]),
+        raise AssertionFailed(f"压测出现错误: {stats.error_messages[:3]}",
                               metrics={"errors": stats.errors, "error_rate": stats.error_rate})
     p95 = stats.latency.get("p95_ms", 0.0)
     limit = ctx.settings.thresholds.p95_latency_ms
     if p95 >= limit:
-        raise AssertionFailed("P95 延迟 {:.1f}ms 超过阈值 {:.1f}ms".format(p95, limit),
+        raise AssertionFailed(f"P95 延迟 {p95:.1f}ms 超过阈值 {limit:.1f}ms",
                               metrics={"p95_ms": p95, "threshold_ms": limit})
 
 
@@ -55,12 +55,12 @@ async def case_p99_latency(ctx: TestContext) -> None:
     stats = await run_load(lambda i: client.generate([Message.user(payload)]),
                            concurrency=8, count=50)
     if stats.errors:
-        raise AssertionFailed("压测出现错误: {}".format(stats.error_messages[:3]),
+        raise AssertionFailed(f"压测出现错误: {stats.error_messages[:3]}",
                               metrics={"errors": stats.errors, "error_rate": stats.error_rate})
     p99 = stats.latency.get("p99_ms", 0.0)
     limit = ctx.settings.thresholds.p99_latency_ms
     if p99 >= limit:
-        raise AssertionFailed("P99 延迟 {:.1f}ms 超过阈值 {:.1f}ms".format(p99, limit),
+        raise AssertionFailed(f"P99 延迟 {p99:.1f}ms 超过阈值 {limit:.1f}ms",
                               metrics={"p99_ms": p99, "threshold_ms": limit})
 
 
@@ -98,6 +98,6 @@ async def case_ttft(ctx: TestContext) -> None:
     p95 = latency_stats(ttfts)["p95_ms"]
     limit = ctx.settings.thresholds.ttft_p95_ms
     if p95 >= limit:
-        raise AssertionFailed("首 token 延迟 P95 {:.1f}ms 超过阈值 {:.1f}ms".format(p95, limit),
+        raise AssertionFailed(f"首 token 延迟 P95 {p95:.1f}ms 超过阈值 {limit:.1f}ms",
                               metrics={"ttft_p95_ms": p95, "threshold_ms": limit,
                                        "samples": len(ttfts)})

@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from llmqa.core.models import Severity
 

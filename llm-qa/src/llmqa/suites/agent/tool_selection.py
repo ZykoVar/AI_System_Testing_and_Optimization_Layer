@@ -25,7 +25,7 @@ def _weather_tool() -> Tool:
         description="查询指定城市的实时天气",
         parameters={"type": "object", "required": ["city"],
                     "properties": {"city": {"type": "string"}}},
-        handler=lambda city: "{} 晴 25 度".format(city),
+        handler=lambda city: f"{city} 晴 25 度",
     )
 
 
@@ -36,7 +36,7 @@ def _calculator_tool() -> Tool:
         description="执行算术运算",
         parameters={"type": "object", "required": ["expression"],
                     "properties": {"expression": {"type": "string"}}},
-        handler=lambda expression: "计算完成：{}".format(expression),
+        handler=lambda expression: f"计算完成：{expression}",
     )
 
 
@@ -47,7 +47,7 @@ def _search_tool() -> Tool:
         description="联网搜索最新信息",
         parameters={"type": "object", "required": ["query"],
                     "properties": {"query": {"type": "string"}}},
-        handler=lambda query: "关于「{}」的搜索结果……".format(query),
+        handler=lambda query: f"关于「{query}」的搜索结果……",
     )
 
 
@@ -68,7 +68,7 @@ async def weather_selects_get_weather(ctx: TestContext) -> None:
                            system_prompt="你是助手，需要实时数据时调用工具。",
                            max_iterations=4)
     trace = await harness.run("北京今天天气怎么样？")
-    assert trace.tool_call_names == ["get_weather"], "工具选择错误: {}".format(trace.tool_call_names)
+    assert trace.tool_call_names == ["get_weather"], f"工具选择错误: {trace.tool_call_names}"
     assert_contains(trace.final_answer, "晴")
 
 
@@ -86,7 +86,7 @@ async def math_selects_calculator(ctx: TestContext) -> None:
                            system_prompt="你是助手，需要计算时调用计算器。",
                            max_iterations=4)
     trace = await harness.run("请计算 12 乘以 8 等于多少？")
-    assert trace.tool_call_names == ["calculator"], "工具选择错误: {}".format(trace.tool_call_names)
+    assert trace.tool_call_names == ["calculator"], f"工具选择错误: {trace.tool_call_names}"
     assert_contains(trace.final_answer, "96")
 
 
@@ -104,7 +104,7 @@ async def chitchat_calls_no_tool(ctx: TestContext) -> None:
                            max_iterations=4)
     trace = await harness.run("你好，今天过得怎么样？")
     assert trace.success, "闲聊任务未正常完成"
-    assert trace.tool_call_names == [], "闲聊不应调用工具，实际: {}".format(trace.tool_call_names)
+    assert trace.tool_call_names == [], f"闲聊不应调用工具，实际: {trace.tool_call_names}"
     assert_contains(trace.final_answer, "你好")
 
 
@@ -123,5 +123,5 @@ async def multi_tool_selects_search(ctx: TestContext) -> None:
                            system_prompt="你是助手，可调用天气、计算、搜索等工具。",
                            max_iterations=4)
     trace = await harness.run("帮我搜索 Acme 公司的最新动态")
-    assert trace.tool_call_names == ["search"], "工具选择错误: {}".format(trace.tool_call_names)
+    assert trace.tool_call_names == ["search"], f"工具选择错误: {trace.tool_call_names}"
     assert_contains(trace.final_answer, "搜索结果")

@@ -101,7 +101,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 def _run(args: argparse.Namespace) -> int:
     """执行 run 子命令：加载配置→发现用例→过滤→并发运行→产出报告并返回退出码。"""
     from llmqa.clients import ClientPool
-    from llmqa.config import Settings, repo_root
+    from llmqa.config import Settings
     from llmqa.core.models import Severity, TestContext
     from llmqa.core.registry import discover
     from llmqa.core.reporter import Reporter
@@ -139,7 +139,7 @@ def _run(args: argparse.Namespace) -> int:
             print("{:<12} {:<38} {} [{}]".format(
                 c.suite, c.id, c.name, ",".join(sorted(c.tags)) or "-"))
         return 0
-    print("匹配 {} 个用例，Provider: {}".format(len(cases), provider_name))
+    print(f"匹配 {len(cases)} 个用例，Provider: {provider_name}")
 
     reporter = Reporter(args.report_dir or (root / settings.report_dir),
                         no_color=args.no_color)
@@ -157,7 +157,7 @@ def _run(args: argparse.Namespace) -> int:
     files = reporter.finalize(report)
     print()
     print(report.summary_text())
-    print("报告: " + ", ".join("{} → {}".format(k, v) for k, v in files.items()))
+    print("报告: " + ", ".join(f"{k} → {v}" for k, v in files.items()))
     if args.soft:
         # --soft：无论是否失败都返回 0，供门禁外的软性检查使用
         return 0
@@ -172,11 +172,11 @@ def _prompts(args: argparse.Namespace) -> int:
     action = args.prompt_action
     if action == "list":
         for t in manager.list():
-            print("{:<28} v{:<3} {:<10} {}".format(t.id, t.version, t.status, t.name))
+            print(f"{t.id:<28} v{t.version:<3} {t.status:<10} {t.name}")
     elif action == "validate":
         problems = manager.validate()
         if problems:
-            print("发现 {} 个问题:".format(len(problems)))
+            print(f"发现 {len(problems)} 个问题:")
             for p in problems:
                 print("  - " + p)
             return 1
@@ -188,23 +188,22 @@ def _prompts(args: argparse.Namespace) -> int:
         for pid, report in scanner.scan_library(manager).items():
             if report.findings:
                 total += len(report.findings)
-                print("{} 风险 {}：".format(pid, report.highest_risk))
+                print(f"{pid} 风险 {report.highest_risk}：")
                 for f in report.findings:
-                    print("  [{}/{}] {} → {}".format(f.risk, f.rule, f.location, f.matched))
-        print("共 {} 条风险发现".format(total))
+                    print(f"  [{f.risk}/{f.rule}] {f.location} → {f.matched}")
+        print(f"共 {total} 条风险发现")
         return 0 if total == 0 else 1
     elif action == "show":
         t = manager.get(args.prompt_id, args.version)
-        print("id: {}  name: {}  version: {}  status: {}".format(
-            t.id, t.name, t.version, t.status))
+        print(f"id: {t.id}  name: {t.name}  version: {t.version}  status: {t.status}")
         for m in t.messages:
-            print("--- [{}] ---".format(m.role))
+            print(f"--- [{m.role}] ---")
             print(m.content)
     elif action == "diff":
         print(manager.diff(args.prompt_id, args.v1, args.v2))
     elif action == "promote":
         manager.promote(args.prompt_id, args.status, args.version)
-        print("已流转 {} → {}".format(args.prompt_id, args.status))
+        print(f"已流转 {args.prompt_id} → {args.status}")
     elif action == "ab-test":
         return _prompts_abtest(args)
     return 0
@@ -233,19 +232,19 @@ def _prompts_abtest(args: argparse.Namespace) -> int:
     files = render_ab_report(result, root / settings.report_dir / "abtest")
     print()
     print(result.summary_text())
-    print("A/B 报告: " + ", ".join("{} → {}".format(k, v) for k, v in files.items()))
-    print("标准报告: reports/{} 与 reports/{}".format(result.run_id_a, result.run_id_b))
+    print("A/B 报告: " + ", ".join(f"{k} → {v}" for k, v in files.items()))
+    print(f"标准报告: reports/{result.run_id_a} 与 reports/{result.run_id_b}")
     # 出现回归即判失败，供 CI 门禁使用
     return 1 if result.regressions else 0
 
 
 def _report(args: argparse.Namespace) -> int:
     """report 子命令：list 历史运行 / compare 两次运行回归对比。"""
-    import json
     import datetime as dt
+    import json
 
     from llmqa.config import Settings
-    from llmqa.core.compare import OutcomeDiff, compare_outcomes, summarize_diffs
+    from llmqa.core.compare import compare_outcomes, summarize_diffs
     from llmqa.core.models import TestOutcome
 
     root = _resolve_root(args.config)
@@ -258,7 +257,7 @@ def _report(args: argparse.Namespace) -> int:
     if args.report_action == "list":
         runs = sorted((d for d in report_dir.glob("*/report.json") if d.parent.name != "compare"),
                       key=lambda p: p.stat().st_mtime, reverse=True)
-        print("共 {} 次运行:".format(len(runs)))
+        print(f"共 {len(runs)} 次运行:")
         for p in runs:
             data = json.loads(p.read_text(encoding="utf-8"))
             counts = data["counts"]
@@ -305,7 +304,7 @@ def _report(args: argparse.Namespace) -> int:
     out_dir = report_dir / "compare"
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    stem = "compare-{}-{}-vs-{}".format(stamp, run_a, run_b)
+    stem = f"compare-{stamp}-{run_a}-vs-{run_b}"
     md_path = out_dir / (stem + ".md")
     json_path = out_dir / (stem + ".json")
     md_path.write_text(_render_compare_md(run_a, run_b, diffs, counts, only_a, only_b),
@@ -335,7 +334,7 @@ def _render_compare_md(run_a: str, run_b: str, diffs: list,
     lines = [
         "# 运行对比报告",
         "",
-        "- 基线（旧）: {}  当前（新）: {}".format(run_a, run_b),
+        f"- 基线（旧）: {run_a}  当前（新）: {run_b}",
         "- 结论: 共 {total} 例 | 回归 {regressions} | 改善 {improvements} | "
         "指标漂移 {metric_drifts} | 消息变化 {message_changes} | 未变化 {unchanged}".format(
             **counts),
@@ -343,16 +342,15 @@ def _render_compare_md(run_a: str, run_b: str, diffs: list,
     ]
 
     def section(title: str, items: list) -> None:
-        lines.append("## {}（{} 例）".format(title, len(items)))
+        lines.append(f"## {title}（{len(items)} 例）")
         lines.append("")
         if not items:
             lines.append("无")
         for d in items:
-            lines.append("- **{}** {}（{}）: {} → {}".format(
-                d.case_id, d.name, d.severity.value, d.verdict_a.value, d.verdict_b.value))
+            lines.append(f"- **{d.case_id}** {d.name}（{d.severity.value}）: {d.verdict_a.value} → {d.verdict_b.value}")
             if d.message_a or d.message_b:
-                lines.append("  - A: {}".format(d.message_a[:150]))
-                lines.append("  - B: {}".format(d.message_b[:150]))
+                lines.append(f"  - A: {d.message_a[:150]}")
+                lines.append(f"  - B: {d.message_b[:150]}")
             for metric, pair in d.metric_diffs.items():
                 lines.append("  - {}: {} → {}".format(metric, pair["a"], pair["b"]))
         lines.append("")
@@ -385,7 +383,7 @@ def _datasets(args: argparse.Namespace) -> int:
 
 def _demo(args: argparse.Namespace) -> int:
     """执行 demo 子命令：导入演示模块触发 @test 注册，再运行演示套件。"""
-    from llmqa import demo  # noqa: F401 —— 导入即注册演示用例
+    from llmqa import demo
     return demo.run()
 
 

@@ -23,7 +23,7 @@ async def required_argument_passed(ctx: TestContext) -> None:
     def weather_handler(city: str) -> str:
         if not city or not isinstance(city, str):
             return "FAIL: 缺少必填参数 city"
-        return "OK: 已查询 {} 的天气".format(city)
+        return f"OK: 已查询 {city} 的天气"
 
     weather = Tool(name="get_weather", description="查询城市天气",
                    parameters={"type": "object", "required": ["city"],
@@ -48,8 +48,8 @@ async def integer_argument_type(ctx: TestContext) -> None:
     """断言：handler 收到的 a/b 为 int 类型，观测含 OK。"""
     def add_handler(a: int, b: int) -> str:
         if isinstance(a, int) and isinstance(b, int):
-            return "OK: {} + {} = {}".format(a, b, a + b)
-        return "FAIL: 参数类型错误 a={} b={}".format(type(a).__name__, type(b).__name__)
+            return f"OK: {a} + {b} = {a + b}"
+        return f"FAIL: 参数类型错误 a={type(a).__name__} b={type(b).__name__}"
 
     add = Tool(name="add", description="两整数相加",
                parameters={"type": "object", "required": ["a", "b"],

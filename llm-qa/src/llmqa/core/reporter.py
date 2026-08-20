@@ -46,9 +46,7 @@ class Reporter:
         tag = outcome.verdict.value
         if not self.no_color:
             tag = _COLORS[outcome.verdict] + tag + _RESET
-        line = "[{tag}] {sev:<8} {cid:<34} {name} ({dur:.0f}ms)".format(
-            tag=tag, sev=outcome.severity.value, cid=outcome.case_id,
-            name=outcome.name, dur=outcome.duration_ms)
+        line = f"[{tag}] {outcome.severity.value:<8} {outcome.case_id:<34} {outcome.name} ({outcome.duration_ms:.0f}ms)"
         if outcome.verdict in (Verdict.FAIL, Verdict.ERROR):
             line += "\n      -> " + outcome.message[:200]
         print(line)
@@ -92,7 +90,7 @@ def _render_markdown(report: TestReport) -> str:
         "",
         "- Provider: " + bt + report.provider + bt,
         "- 开始时间: " + report.started_at,
-        "- 总耗时: {:.0f} ms".format(report.duration_ms),
+        f"- 总耗时: {report.duration_ms:.0f} ms",
         "- 通过率: **{:.1%}** （通过 {} / 失败 {} / 错误 {} / 跳过 {}）".format(
             report.pass_rate, c["PASS"], c["FAIL"], c["ERROR"], c["SKIP"]),
         "",
@@ -103,8 +101,7 @@ def _render_markdown(report: TestReport) -> str:
     if not fails:
         lines.append("无失败用例 ✅")
     for o in fails:
-        lines.append("### [{v}] {s} — {i} {n}".format(
-            v=o.verdict.value, s=o.severity.value, i=o.case_id, n=o.name))
+        lines.append(f"### [{o.verdict.value}] {o.severity.value} — {o.case_id} {o.name}")
         lines.append("- " + o.message)
         if o.metrics:
             lines.append("- 指标: " + bt + json.dumps(o.metrics, ensure_ascii=False) + bt)
@@ -116,8 +113,7 @@ def _render_markdown(report: TestReport) -> str:
                "| --- | --- | --- | --- | --- | --- |"]
     for o in report.outcomes:
         msg = o.message.replace("|", "\\|")[:80]  # 转义竖线并截断，防止破坏 Markdown 表格列。
-        lines.append("| {} | {} | {} | {} | {:.0f}ms | {} |".format(
-            o.case_id, o.suite, o.severity.value, o.verdict.value, o.duration_ms, msg))
+        lines.append(f"| {o.case_id} | {o.suite} | {o.severity.value} | {o.verdict.value} | {o.duration_ms:.0f}ms | {msg} |")
     return "\n".join(lines) + "\n"
 
 
@@ -128,11 +124,9 @@ def _render_html(report: TestReport) -> str:
     for o in sorted(report.outcomes, key=lambda o: -o.severity.rank):
         color = {"PASS": "#2e7d32", "FAIL": "#c62828", "ERROR": "#6a1b9a", "SKIP": "#f9a825"}[o.verdict.value]
         rows.append(
-            "<tr><td>{}</td><td>{}</td><td>{}</td>"
-            "<td style='color:{};font-weight:600'>{}</td>"
-            "<td>{:.0f}ms</td><td>{}</td></tr>".format(
-                html.escape(o.case_id), o.suite, o.severity.value, color, o.verdict.value,
-                o.duration_ms, html.escape(o.message[:150])))
+            f"<tr><td>{html.escape(o.case_id)}</td><td>{o.suite}</td><td>{o.severity.value}</td>"
+            f"<td style='color:{color};font-weight:600'>{o.verdict.value}</td>"
+            f"<td>{o.duration_ms:.0f}ms</td><td>{html.escape(o.message[:150])}</td></tr>")
     body = """<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>LLM-QA 报告 {run_id}</title>
 <style>
@@ -168,12 +162,12 @@ def _render_junit(report: TestReport) -> str:
         "name": "llmqa", "tests": str(len(report.outcomes)),
         "failures": str(report.counts["FAIL"]), "errors": str(report.counts["ERROR"]),
         "skipped": str(report.counts["SKIP"]),
-        "time": "{:.3f}".format(report.duration_ms / 1000),
+        "time": f"{report.duration_ms / 1000:.3f}",
     })
     for o in report.outcomes:
         case = ET.SubElement(suite, "testcase", {
-            "classname": o.suite, "name": "{} — {}".format(o.case_id, o.name),
-            "time": "{:.3f}".format(o.duration_ms / 1000),
+            "classname": o.suite, "name": f"{o.case_id} — {o.name}",
+            "time": f"{o.duration_ms / 1000:.3f}",
         })
         if o.verdict == Verdict.FAIL:
             ET.SubElement(case, "failure", {"message": o.message[:500]}).text = o.message

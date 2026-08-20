@@ -30,7 +30,7 @@ async def case_rate_limit_raises(ctx: TestContext) -> None:
         await client.generate([Message.user("触发限流")])
     except LLMError as e:
         if e.status != 429:
-            raise AssertionFailed("LLMError status 期望 429，实际 {}".format(e.status),
+            raise AssertionFailed(f"LLMError status 期望 429，实际 {e.status}",
                                   metrics={"status": e.status})
         return
     raise AssertionFailed("429 故障注入后未抛出 LLMError")
@@ -46,12 +46,12 @@ async def case_partial_rate_limit(ctx: TestContext) -> None:
         MockRule(match=".*", error={"status": 429, "message": "rate limited"}, times=25),
         MockRule(match=".*", reply="限流恢复后的成功回复。"),
     ])
-    stats = await run_load(lambda i: client.generate([Message.user("请求 {}".format(i))]),
+    stats = await run_load(lambda i: client.generate([Message.user(f"请求 {i}")]),
                            concurrency=10, count=50)
     # 期望约 0.5 的错误率，用 [0.4, 0.6] 区间留出统计抖动余量
     if not (0.4 <= stats.error_rate <= 0.6):
         raise AssertionFailed(
-            "部分限流场景 error_rate={:.4f} 未落在 [0.4, 0.6] 区间".format(stats.error_rate),
+            f"部分限流场景 error_rate={stats.error_rate:.4f} 未落在 [0.4, 0.6] 区间",
             metrics={"error_rate": stats.error_rate, "errors": stats.errors,
                      "requests": stats.requests, "error_messages": stats.error_messages[:3]})
 

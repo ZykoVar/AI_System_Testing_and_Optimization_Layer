@@ -35,7 +35,7 @@ async def retrieval_mean_recall(ctx: TestContext) -> None:
     m = harness.evaluate_retrieval(queries, k=4)
     if m.mean_recall_at_k < 0.8:
         raise AssertionFailed(
-            "平均召回率 {:.2f} 低于阈值 0.8".format(m.mean_recall_at_k),
+            f"平均召回率 {m.mean_recall_at_k:.2f} 低于阈值 0.8",
             metrics={"mean_recall_at_k": m.mean_recall_at_k})
 
 
@@ -48,7 +48,7 @@ async def retrieval_mean_hit(ctx: TestContext) -> None:
     m = harness.evaluate_retrieval(queries, k=4)
     if m.mean_hit_at_k < 0.8:
         raise AssertionFailed(
-            "平均命中率 {:.2f} 低于阈值 0.8".format(m.mean_hit_at_k),
+            f"平均命中率 {m.mean_hit_at_k:.2f} 低于阈值 0.8",
             metrics={"mean_hit_at_k": m.mean_hit_at_k})
 
 
@@ -61,7 +61,7 @@ async def retrieval_mean_mrr(ctx: TestContext) -> None:
     m = harness.evaluate_retrieval(queries, k=4)
     if m.mean_mrr < 0.7:
         raise AssertionFailed(
-            "平均 MRR {:.2f} 低于阈值 0.7".format(m.mean_mrr),
+            f"平均 MRR {m.mean_mrr:.2f} 低于阈值 0.7",
             metrics={"mean_mrr": m.mean_mrr})
 
 
@@ -77,7 +77,7 @@ async def retrieval_mean_precision(ctx: TestContext) -> None:
     m = harness.evaluate_retrieval(queries, k=4)
     if m.mean_precision_at_k < 0.2:  # 单相关文档查询在 k=4 下精确率上限 1/4，故阈值降至 0.2（见模块 docstring）
         raise AssertionFailed(
-            "平均精确率 {:.2f} 低于阈值 0.2".format(m.mean_precision_at_k),
+            f"平均精确率 {m.mean_precision_at_k:.2f} 低于阈值 0.2",
             metrics={"mean_precision_at_k": m.mean_precision_at_k})
 
 

@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import inspect
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -29,7 +30,7 @@ class AgentAbortError(RuntimeError):
 class LoopDetected(AgentAbortError):
     """重复工具调用循环。"""
     def __init__(self, tool_name: str, times: int):
-        super().__init__("检测到工具 {} 连续重复调用 {} 次".format(tool_name, times),
+        super().__init__(f"检测到工具 {tool_name} 连续重复调用 {times} 次",
                          abort_reason="loop_detected")
 
 
@@ -42,7 +43,7 @@ class BudgetExceeded(AgentAbortError):
 class ToolPolicyViolation(AgentAbortError):
     """调用未注册/未授权工具。"""
     def __init__(self, tool_name: str):
-        super().__init__("模型调用了不允许的工具: {}".format(tool_name),
+        super().__init__(f"模型调用了不允许的工具: {tool_name}",
                          abort_reason="tool_policy_violation")
 
 
@@ -65,14 +66,14 @@ class Tool(BaseModel):
     async def invoke(self, arguments: dict[str, Any]) -> str:
         """调用工具并统一返回字符串观测；handler 异常不向上抛，而是转成错误观测。"""
         if self.handler is None:
-            return "[工具 {} 无 handler]".format(self.name)
+            return f"[工具 {self.name} 无 handler]"
         try:
             result = self.handler(**arguments)
             if inspect.isawaitable(result):
                 result = await result
             return str(result)
         except Exception as e:  # noqa: BLE001 —— 工具异常转观测
-            return "[工具异常] {}: {}".format(type(e).__name__, e)
+            return f"[工具异常] {type(e).__name__}: {e}"
 
 
 class ToolResult(BaseModel):

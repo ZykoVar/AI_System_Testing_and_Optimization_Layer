@@ -45,8 +45,7 @@ def main() -> int:
         for rel in changed:
             print("  - " + rel)
         return 1
-    print("AST 比对通过：{} 个文件仅有注释/docstring 差异".format(
-        len(a_files.keys() & b_files.keys())))
+    print(f"AST 比对通过：{len(a_files.keys() & b_files.keys())} 个文件仅有注释/docstring 差异")
     return 0
 
 

@@ -5,7 +5,7 @@ import asyncio
 import datetime as dt
 import time
 import traceback
-from typing import Awaitable, Callable
+from collections.abc import Callable
 
 from pydantic import BaseModel, Field
 
@@ -118,7 +118,7 @@ class TestRunner:
                     metrics = dict(getattr(e, "metrics", {}) or {})
                     break
                 except AssertionError as e:  # 普通 assert 失败 → FAIL（不重试）
-                    verdict, message = Verdict.FAIL, "断言失败: {}".format(e)
+                    verdict, message = Verdict.FAIL, f"断言失败: {e}"
                     break
                 except asyncio.TimeoutError:
                     # 超时属于基础设施问题，不重试（避免放大长时间挂起的影响）。
@@ -166,8 +166,7 @@ class TestRunner:
                                 case_id=case.id, name=case.name, suite=case.suite,
                                 tags=sorted(case.tags), severity=case.severity,
                                 verdict=Verdict.SKIP,
-                                message="成本预算耗尽：已用 {}/{}，本用例需 {}".format(
-                                    self.used_cost, self.max_cost, case.cost),
+                                message=f"成本预算耗尽：已用 {self.used_cost}/{self.max_cost}，本用例需 {case.cost}",
                             ))
                             return
                         self.used_cost += case.cost

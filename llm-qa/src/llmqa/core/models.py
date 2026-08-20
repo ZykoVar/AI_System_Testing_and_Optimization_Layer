@@ -20,7 +20,7 @@ class Severity(str, Enum):
         """数值等级，用于排序与"不低于某级别"的过滤比较。"""
         return _SEVERITY_RANK[self]
 
-    def __ge__(self, other: "Severity") -> bool:
+    def __ge__(self, other: Severity) -> bool:
         # 重载比较运算符，使 self.severity >= min_severity 这类过滤写法可读且直观。
         return self.rank >= other.rank
 

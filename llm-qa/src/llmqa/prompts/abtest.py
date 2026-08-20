@@ -62,10 +62,8 @@ class ABTestResult(BaseModel):
 
     def summary_text(self) -> str:
         """一行中文摘要，供报告标题与日志输出使用。"""
-        return ("Prompt {pid} v{a} vs v{b} | 共 {t} 例 | 未变化 {u} | 回归 {r} | "
-                "改善 {i} | 指标漂移 {m}").format(
-            pid=self.prompt_id, a=self.version_a, b=self.version_b, t=self.total,
-            u=self.unchanged, r=self.regressions, i=self.improvements, m=self.metric_drifts)
+        return (f"Prompt {self.prompt_id} v{self.version_a} vs v{self.version_b} | 共 {self.total} 例 | 未变化 {self.unchanged} | 回归 {self.regressions} | "
+                f"改善 {self.improvements} | 指标漂移 {self.metric_drifts}")
 
     def by_direction(self, direction: str) -> list[ABChange]:
         """按方向（regression/improvement/metric_drift/message_change/unchanged）筛选差异。"""
@@ -165,26 +163,24 @@ def _render_markdown(result: ABTestResult) -> str:
     lines = [
         "# Prompt A/B 测试报告",
         "",
-        "- Prompt: {}  **v{} vs v{}**".format(result.prompt_id, result.version_a, result.version_b),
-        "- Provider: {}".format(result.provider),
-        "- 运行 A: {}（v{}）".format(result.run_id_a, result.version_a),
-        "- 运行 B: {}（v{}）".format(result.run_id_b, result.version_b),
-        "- 结论: {}".format(result.summary_text()),
+        f"- Prompt: {result.prompt_id}  **v{result.version_a} vs v{result.version_b}**",
+        f"- Provider: {result.provider}",
+        f"- 运行 A: {result.run_id_a}（v{result.version_a}）",
+        f"- 运行 B: {result.run_id_b}（v{result.version_b}）",
+        f"- 结论: {result.summary_text()}",
         "",
     ]
 
     def section(title: str, changes: list[ABChange]) -> None:
-        lines.append("## {}（{} 例）".format(title, len(changes)))
+        lines.append(f"## {title}（{len(changes)} 例）")
         lines.append("")
         if not changes:
             lines.append("无")
         for c in changes:
-            lines.append("- **{}** {}（{}）: {} → {}".format(
-                c.case_id, c.name, c.severity.value,
-                c.verdict_a.value, c.verdict_b.value))
+            lines.append(f"- **{c.case_id}** {c.name}（{c.severity.value}）: {c.verdict_a.value} → {c.verdict_b.value}")
             if c.message_a or c.message_b:
-                lines.append("  - A: {}".format(c.message_a[:160]))
-                lines.append("  - B: {}".format(c.message_b[:160]))
+                lines.append(f"  - A: {c.message_a[:160]}")
+                lines.append(f"  - B: {c.message_b[:160]}")
             for metric, pair in c.metric_diffs.items():
                 lines.append("  - {}: {} → {}".format(metric, pair["a"], pair["b"]))
         lines.append("")
@@ -194,11 +190,8 @@ def _render_markdown(result: ABTestResult) -> str:
     section("指标漂移", result.by_direction("metric_drift"))
     section("失败消息变化", result.by_direction("message_change"))
     lines += ["## 全部对照", "",
-              "| 用例 | 套件 | 严重级 | v{} | v{} | 方向 |".format(
-                  result.version_a, result.version_b),
+              f"| 用例 | 套件 | 严重级 | v{result.version_a} | v{result.version_b} | 方向 |",
               "| --- | --- | --- | --- | --- | --- |"]
     for c in result.changes:
-        lines.append("| {} | {} | {} | {} | {} | {} |".format(
-            c.case_id, c.suite, c.severity.value, c.verdict_a.value,
-            c.verdict_b.value, c.direction))
+        lines.append(f"| {c.case_id} | {c.suite} | {c.severity.value} | {c.verdict_a.value} | {c.verdict_b.value} | {c.direction} |")
     return "\n".join(lines) + "\n"

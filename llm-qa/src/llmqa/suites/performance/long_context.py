@@ -46,11 +46,11 @@ async def case_long_latency(ctx: TestContext) -> None:
                            concurrency=4, count=20)
     # 先拦截请求错误：有错误时延迟分位不可信，直接失败而非继续比较阈值
     if stats.errors:
-        raise AssertionFailed("长载荷压测出现错误: {}".format(stats.error_messages[:3]),
+        raise AssertionFailed(f"长载荷压测出现错误: {stats.error_messages[:3]}",
                               metrics={"errors": stats.errors, "error_rate": stats.error_rate})
     p95 = stats.latency.get("p95_ms", 0.0)
     # 长上下文允许更高延迟，但仍封顶在 2× 常规阈值，防止长载荷退化失控
     limit = 2 * ctx.settings.thresholds.p95_latency_ms
     if p95 >= limit:
-        raise AssertionFailed("长载荷 P95 延迟 {:.1f}ms 超过 2× 阈值 {:.1f}ms".format(p95, limit),
+        raise AssertionFailed(f"长载荷 P95 延迟 {p95:.1f}ms 超过 2× 阈值 {limit:.1f}ms",
                               metrics={"p95_ms": p95, "threshold_ms": limit})

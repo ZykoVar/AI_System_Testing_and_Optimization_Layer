@@ -49,8 +49,8 @@ def test_budget_exceeded():
     rules = []
     for i in range(6):
         rules.append(MockRule(match="任务", reply={"tool_calls": [
-            {"id": "c{}".format(i), "name": "get_weather",
-             "arguments": {"city": "城市{}".format(i)}}]}))
+            {"id": f"c{i}", "name": "get_weather",
+             "arguments": {"city": f"城市{i}"}}]}))
     client = MockClient(rules=rules)
     harness = AgentHarness(client, [weather_tool()], max_iterations=3,
                            stop_on_repeated_calls=10)

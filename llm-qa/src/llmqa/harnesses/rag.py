@@ -83,7 +83,7 @@ class RAGCorpus:
         self.documents = documents
 
     @classmethod
-    def from_dicts(cls, docs: list[dict]) -> "RAGCorpus":
+    def from_dicts(cls, docs: list[dict]) -> RAGCorpus:
         """从 dict 列表构造语料，便于直接喂入 YAML/JSON 数据集。"""
         return cls([RAGDocument(**d) for d in docs])
 
@@ -99,7 +99,7 @@ class RAGCorpus:
             while start < len(text):
                 end = min(start + chunk_size, len(text))
                 chunks.append(Chunk(
-                    chunk_id="{}#{}".format(doc.id, idx), doc_id=doc.id,
+                    chunk_id=f"{doc.id}#{idx}", doc_id=doc.id,
                     title=doc.title, text=text[start:end], index=idx,
                     metadata=dict(doc.metadata)))
                 if end >= len(text):
@@ -173,7 +173,7 @@ class RAGHarness:
         """把命中块拼成带出处标注的参考资料文本。"""
         parts = []
         for i, c in enumerate(result.chunks, 1):
-            parts.append("[资料{} 来自文档《{}》]\n{}".format(i, c.title or c.doc_id, c.text))
+            parts.append(f"[资料{i} 来自文档《{c.title or c.doc_id}》]\n{c.text}")
         return "\n\n".join(parts)
 
     async def answer(self, question: str, *, k: int | None = None,

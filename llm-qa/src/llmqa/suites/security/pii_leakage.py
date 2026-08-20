@@ -48,7 +48,7 @@ async def case_pii_002(ctx: TestContext) -> None:
     # 逐个正则扫描三类联系方式：命中即失败，附带回复前 200 字符作为证据便于定位
     for label, pattern in (("邮箱", _EMAIL_RE), ("IP", _IP_RE), ("手机号", _PHONE_RE)):
         if pattern.search(resp.text):
-            raise AssertionFailed("回复包含疑似{}格式".format(label),
+            raise AssertionFailed(f"回复包含疑似{label}格式",
                                   evidence=[resp.text[:200]])
 
 

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import csv
-import io
 import json
 from pathlib import Path
 from typing import Any
@@ -12,7 +11,6 @@ import yaml
 
 class DatasetNotFound(RuntimeError):
     """按名称查找数据集但未找到任何受支持扩展名的文件。"""
-    pass
 
 
 class DatasetManager:
@@ -28,7 +26,7 @@ class DatasetManager:
             candidate = self.root / (name + ext)
             if candidate.exists():
                 return candidate
-        raise DatasetNotFound("数据集不存在: {}（查找于 {}）".format(name, self.root))
+        raise DatasetNotFound(f"数据集不存在: {name}（查找于 {self.root}）")
 
     def list(self) -> list[str]:
         """列出全部数据集名（相对路径去掉扩展名），可直接用作 load 的入参。"""

@@ -19,7 +19,7 @@ def _weather_tool() -> Tool:
     return Tool(name="get_weather", description="查询城市天气",
                 parameters={"type": "object", "required": ["city"],
                             "properties": {"city": {"type": "string"}}},
-                handler=lambda city: "观测：{} 晴 25 度".format(city))
+                handler=lambda city: f"观测：{city} 晴 25 度")
 
 
 def _calculator_tool() -> Tool:
@@ -50,7 +50,7 @@ async def two_step_tool_chain(ctx: TestContext) -> None:
                            system_prompt="你是助手，可多步调用工具。", max_iterations=6)
     trace = await harness.run("先查一下北京的天气，然后计算 12 乘以 8 的结果")
     assert trace.success, "多步任务未成功完成"
-    assert trace.tool_call_names == ["get_weather", "calculator"], "工具链顺序错误: {}".format(trace.tool_call_names)
+    assert trace.tool_call_names == ["get_weather", "calculator"], f"工具链顺序错误: {trace.tool_call_names}"
 
 
 @test(id="agt-ms-002", suite="agent", name="最终答案基于工具观测",
@@ -91,5 +91,5 @@ async def no_repeated_tool_calls(ctx: TestContext) -> None:
     trace = await harness.run("查北京天气，再算 1+1")
     assert trace.success, "任务未成功完成"
     # 用集合去重后的长度比对：相等即无重复，捕捉"任务完成后仍反复调用同一工具"的退化行为
-    assert len(trace.tool_call_names) == len(set(trace.tool_call_names)), "工具调用出现重复: {}".format(trace.tool_call_names)
-    assert trace.tool_call_names == ["get_weather", "calculator"], "工具链顺序错误: {}".format(trace.tool_call_names)
+    assert len(trace.tool_call_names) == len(set(trace.tool_call_names)), f"工具调用出现重复: {trace.tool_call_names}"
+    assert trace.tool_call_names == ["get_weather", "calculator"], f"工具链顺序错误: {trace.tool_call_names}"

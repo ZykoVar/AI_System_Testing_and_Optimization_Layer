@@ -17,7 +17,7 @@ def _weather_tool() -> Tool:
     return Tool(name="get_weather", description="查询城市天气",
                 parameters={"type": "object", "required": ["city"],
                             "properties": {"city": {"type": "string"}}},
-                handler=lambda city: "{} 晴 25 度".format(city))
+                handler=lambda city: f"{city} 晴 25 度")
 
 
 @test(id="agt-loop-001", suite="agent", name="重复工具调用触发循环检测",
@@ -34,7 +34,7 @@ async def loop_detected(ctx: TestContext) -> None:
     harness = AgentHarness(client, [_weather_tool()], system_prompt="你是助手，可调用工具。",
                            max_iterations=6, stop_on_repeated_calls=3)
     trace = await harness.run("北京今天天气怎么样？")
-    assert trace.abort_reason == "loop_detected", "期望 loop_detected，实际: {}".format(trace.abort_reason)
+    assert trace.abort_reason == "loop_detected", f"期望 loop_detected，实际: {trace.abort_reason}"
 
 
 @test(id="agt-loop-002", suite="agent", name="循环护栏及时中止",
@@ -49,6 +49,6 @@ async def loop_aborts_promptly(ctx: TestContext) -> None:
     harness = AgentHarness(client, [_weather_tool()], system_prompt="你是助手，可调用工具。",
                            max_iterations=8, stop_on_repeated_calls=3)
     trace = await harness.run("北京今天天气怎么样？")
-    assert trace.abort_reason == "loop_detected", "期望 loop_detected，实际: {}".format(trace.abort_reason)
+    assert trace.abort_reason == "loop_detected", f"期望 loop_detected，实际: {trace.abort_reason}"
     # 护栏应在第 3 次重复调用即中止（iterations==3），而非耗尽 max_iterations=8 的预算
-    assert trace.iterations <= 4, "循环护栏未及时生效，iterations={}".format(trace.iterations)
+    assert trace.iterations <= 4, f"循环护栏未及时生效，iterations={trace.iterations}"

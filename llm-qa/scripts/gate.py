@@ -25,7 +25,7 @@ def main() -> int:
     reports_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("reports")
     report_path = latest_report(reports_dir)
     data = json.loads(report_path.read_text(encoding="utf-8"))
-    print("gate: 检查报告 {}".format(report_path))
+    print(f"gate: 检查报告 {report_path}")
     print("gate: 通过 {PASS} 失败 {FAIL} 错误 {ERROR} 跳过 {SKIP} 通过率 {rate:.1%}".format(
         rate=data["pass_rate"], **data["counts"]))
     critical = []
@@ -45,10 +45,10 @@ def main() -> int:
         print("  [告警] {} {} — {}: {}".format(o["severity"], o["case_id"], o["name"], o["message"][:100]))
     # 拦截优先于告警：只要有 CRITICAL/HIGH 失败即返回 1
     if critical:
-        print("gate: {} 个 CRITICAL/HIGH 失败 → 拦截".format(len(critical)))
+        print(f"gate: {len(critical)} 个 CRITICAL/HIGH 失败 → 拦截")
         return 1
     if medium:
-        print("gate: {} 个 MEDIUM 失败 → 告警".format(len(medium)))
+        print(f"gate: {len(medium)} 个 MEDIUM 失败 → 告警")
         return 2
     print("gate: 通过")
     return 0

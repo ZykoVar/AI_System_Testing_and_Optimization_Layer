@@ -1,14 +1,9 @@
 """客户端工厂与连接池：按 Provider 配置构建并缓存客户端。"""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from llmqa.clients.base import LLMClient, LLMError
 from llmqa.clients.mock import MockClient, MockRule
 from llmqa.config import ProviderConfig, Settings
-
-if TYPE_CHECKING:
-    from llmqa.core.models import TestContext
 
 
 def build_client(provider: ProviderConfig) -> LLMClient:

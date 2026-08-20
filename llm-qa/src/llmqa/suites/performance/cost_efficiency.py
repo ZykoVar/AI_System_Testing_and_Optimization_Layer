@@ -30,7 +30,7 @@ async def case_single_cost(ctx: TestContext) -> None:
         raise SkipTest("Provider 未配置 pricing，无法估算单请求成本")
     limit = ctx.settings.thresholds.cost_per_request_usd
     if cost > limit:
-        raise AssertionFailed("单请求成本 {:.6f} USD 超过阈值 {:.6f} USD".format(cost, limit),
+        raise AssertionFailed(f"单请求成本 {cost:.6f} USD 超过阈值 {limit:.6f} USD",
                               metrics={"cost_usd": cost, "threshold_usd": limit})
 
 
@@ -51,6 +51,6 @@ async def case_batch_cost(ctx: TestContext) -> None:
     budget = 0.5  # 批量 50 请求的成本护栏预算（固定 0.5 USD）
     if total > budget:
         raise AssertionFailed(
-            "批量估算总成本 {:.6f} USD 超过预算 {:.2f} USD".format(total, budget),
+            f"批量估算总成本 {total:.6f} USD 超过预算 {budget:.2f} USD",
             metrics={"total_cost_usd": total, "budget_usd": budget,
                      "mean_cost_usd": mean, "requests": stats.requests})

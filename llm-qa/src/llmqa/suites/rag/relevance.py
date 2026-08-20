@@ -25,7 +25,7 @@ async def retrieval_top1_relevant(ctx: TestContext) -> None:
         q = queries[qid]
         result = await harness.retrieve(q["query"], k=1)  # k=1 只取 top1，校验最相关文档是否命中标注
         if not result.chunks:
-            raise AssertionFailed("{} 检索结果为空".format(qid))
+            raise AssertionFailed(f"{qid} 检索结果为空")
         top_doc = result.chunks[0].doc_id  # retrieve 按 BM25 分数降序返回，chunks[0] 即 top1
         if top_doc not in q["relevant_doc_ids"]:  # 用 doc 粒度（非 chunk）判断命中，容忍同文档被切成多块
             raise AssertionFailed(
@@ -61,7 +61,6 @@ async def empty_context_no_hard_answer(ctx: TestContext) -> None:
     harness = RAGHarness(corpus, client, prompt_manager=ctx.prompts, prompt_id="rag/answer")
     result = await harness.retrieve("任意问题", k=4)
     if harness.build_context(result) != "":  # 空结果集下 build_context 必须返回空串，否则会把空资料占位注入提示词
-        raise AssertionFailed("空语料下 build_context 应为空串，实际: {!r}".format(
-            harness.build_context(result)))
+        raise AssertionFailed(f"空语料下 build_context 应为空串，实际: {harness.build_context(result)!r}")
     resp = await harness.answer("任意问题", k=4)
     assert_contains(resp.text, "无法回答")

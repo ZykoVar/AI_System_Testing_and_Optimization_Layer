@@ -36,7 +36,7 @@ def validate(instance: Any, schema: dict, path: str = "$") -> list[str]:
     errors: list[str] = []
     t = schema.get("type")
     if t and not _type_ok(instance, t):
-        errors.append("{}: 期望类型 {}，实际 {}".format(path, t, type(instance).__name__))
+        errors.append(f"{path}: 期望类型 {t}，实际 {type(instance).__name__}")
         # 类型不符时其余约束（长度/枚举等）已无意义，直接返回避免误报。
         return errors
     if "enum" in schema and instance not in schema["enum"]:
@@ -47,21 +47,21 @@ def validate(instance: Any, schema: dict, path: str = "$") -> list[str]:
         props = schema.get("properties", {})
         for req in schema.get("required", []):
             if req not in instance:
-                errors.append("{}.{}: 缺少必填字段".format(path, req))
+                errors.append(f"{path}.{req}: 缺少必填字段")
         if schema.get("additionalProperties") is False:
             # 显式关闭附加字段时，任何未在 properties 声明的键都视为违规。
             for k in instance:
                 if k not in props:
-                    errors.append("{}.{}: 未声明的字段".format(path, k))
+                    errors.append(f"{path}.{k}: 未声明的字段")
         for k, subschema in props.items():
             if k in instance:
-                errors.extend(validate(instance[k], subschema, "{}.{}".format(path, k)))
+                errors.extend(validate(instance[k], subschema, f"{path}.{k}"))
     elif t == "array" and isinstance(instance, list):
         items = schema.get("items")
         # 仅支持单对象 schema 的 items（列表型元组 schema 不在支持子集内）。
         if isinstance(items, dict):
             for i, item in enumerate(instance):
-                errors.extend(validate(item, items, "{}[{}]".format(path, i)))
+                errors.extend(validate(item, items, f"{path}[{i}]"))
         if "minItems" in schema and len(instance) < schema["minItems"]:
             errors.append("{}: 数组长度 {} 小于 minItems {}".format(path, len(instance), schema["minItems"]))
         if "maxItems" in schema and len(instance) > schema["maxItems"]:
@@ -112,7 +112,7 @@ def assert_json_valid(text: str, message: str | None = None) -> Any:
     try:
         return parse_json(text)
     except (json.JSONDecodeError, AssertionFailed) as e:
-        raise AssertionFailed(message or "JSON 解析失败: {}".format(e), evidence=[text[:500]])
+        raise AssertionFailed(message or f"JSON 解析失败: {e}", evidence=[text[:500]])
 
 
 def assert_json_schema(text: str, schema: dict, message: str | None = None) -> Any:

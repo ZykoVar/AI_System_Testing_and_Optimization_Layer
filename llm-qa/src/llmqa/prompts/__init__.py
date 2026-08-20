@@ -13,8 +13,18 @@ from llmqa.prompts.manager import (
 
 # 只暴露稳定公共 API；内部实现细节（如 _compare、_RULES）不在此重导出。
 __all__ = [
-    "PromptManager", "PromptTemplate", "PromptMessage", "VariableSpec",
-    "PromptError", "PromptNotFound", "PromptRenderError",
-    "PromptScanner", "ScanReport", "InjectionFinding",
-    "run_abtest", "ABTestResult", "ABChange", "render_ab_report",
+    "ABChange",
+    "ABTestResult",
+    "InjectionFinding",
+    "PromptError",
+    "PromptManager",
+    "PromptMessage",
+    "PromptNotFound",
+    "PromptRenderError",
+    "PromptScanner",
+    "PromptTemplate",
+    "ScanReport",
+    "VariableSpec",
+    "render_ab_report",
+    "run_abtest",
 ]

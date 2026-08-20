@@ -19,7 +19,7 @@ def _weather_tool() -> Tool:
     return Tool(name="get_weather", description="查询城市天气",
                 parameters={"type": "object", "required": ["city"],
                             "properties": {"city": {"type": "string"}}},
-                handler=lambda city: "{} 晴 25 度".format(city))
+                handler=lambda city: f"{city} 晴 25 度")
 
 
 @test(id="agt-bud-001", suite="agent", name="迭代预算耗尽中止",
@@ -35,7 +35,7 @@ async def iteration_budget_exceeded(ctx: TestContext) -> None:
     harness = AgentHarness(client, [_weather_tool()], system_prompt="你是助手，可调用工具。",
                            max_iterations=3, stop_on_repeated_calls=9999)
     trace = await harness.run("北京今天天气怎么样？")
-    assert trace.abort_reason == "budget_exceeded", "期望 budget_exceeded，实际: {}".format(trace.abort_reason)
+    assert trace.abort_reason == "budget_exceeded", f"期望 budget_exceeded，实际: {trace.abort_reason}"
 
 
 @test(id="agt-bud-002", suite="agent", name="token 预算耗尽中止",
@@ -51,7 +51,7 @@ async def token_budget_exceeded(ctx: TestContext) -> None:
     harness = AgentHarness(client, [_weather_tool()], system_prompt="你是助手，可调用工具。",
                            max_iterations=6, max_total_tokens=1)
     trace = await harness.run("北京今天天气怎么样？")
-    assert trace.abort_reason == "budget_exceeded", "期望 budget_exceeded，实际: {}".format(trace.abort_reason)
+    assert trace.abort_reason == "budget_exceeded", f"期望 budget_exceeded，实际: {trace.abort_reason}"
 
 
 @test(id="agt-bud-003", suite="agent", name="正常任务在预算内成功",
@@ -69,5 +69,5 @@ async def normal_task_within_budget(ctx: TestContext) -> None:
                            max_iterations=6, max_total_tokens=2000)
     trace = await harness.run("北京今天天气怎么样？")
     assert trace.success, "正常任务未成功完成"
-    assert trace.abort_reason is None, "不应中止，实际: {}".format(trace.abort_reason)
+    assert trace.abort_reason is None, f"不应中止，实际: {trace.abort_reason}"
     assert_contains(trace.final_answer, "晴")

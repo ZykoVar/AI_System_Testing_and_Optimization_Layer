@@ -106,8 +106,7 @@ class Judge:
         threshold = min_score if min_score is not None else 7.0  # 满分 10 时的默认及格线
         if verdict.score < threshold:
             raise AssertionFailed(
-                message or "裁判评分 {:.1f} 低于阈值 {:.1f}：{}".format(
-                    verdict.score, threshold, verdict.reasoning),
+                message or f"裁判评分 {verdict.score:.1f} 低于阈值 {threshold:.1f}：{verdict.reasoning}",
                 metrics={"judge_score": verdict.score})
         return verdict
 

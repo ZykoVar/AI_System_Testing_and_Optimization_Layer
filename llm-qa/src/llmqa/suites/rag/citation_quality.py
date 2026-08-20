@@ -53,7 +53,7 @@ async def citation_numbers_in_bounds(ctx: TestContext) -> None:
     out_of_bounds = [n for n in nums if n < 1 or n > len(result.chunks)]  # [资料N] 编号从 1 起，越界判定需同时校验下界 1
     if out_of_bounds:
         raise AssertionFailed(
-            "引用编号越界（检索块数 {}）: {}".format(len(result.chunks), out_of_bounds),
+            f"引用编号越界（检索块数 {len(result.chunks)}）: {out_of_bounds}",
             metrics={"cited": nums})
 
 
@@ -71,6 +71,6 @@ async def cited_material_exists(ctx: TestContext) -> None:
         raise AssertionFailed("回复未包含 [资料N] 引用")
     for n in nums:
         if n < 1 or n > len(result.chunks):  # 先于下标访问做越界防护，避免 n-1 为负数或越界
-            raise AssertionFailed("引用编号 {} 越界".format(n))
+            raise AssertionFailed(f"引用编号 {n} 越界")
         chunk = result.chunks[n - 1]  # [资料N] 的 N 从 1 起，映射到 chunks 下标需减 1
         assert_contains(resp.text, chunk.title)

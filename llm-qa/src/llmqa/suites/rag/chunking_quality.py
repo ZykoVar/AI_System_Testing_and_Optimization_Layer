@@ -27,7 +27,7 @@ async def chunk_length_bounded(ctx: TestContext) -> None:
     over = [c.chunk_id for c in harness.chunks if len(c.text) > harness.chunk_size]  # 收集所有越界块一次性报告，而非遇到首个即抛
     if over:
         raise AssertionFailed(
-            "存在超出 chunk_size 的块: {}".format(over),
+            f"存在超出 chunk_size 的块: {over}",
             metrics={"over_length_blocks": len(over)})
 
 
@@ -49,7 +49,7 @@ async def adjacent_chunks_overlap(ctx: TestContext) -> None:
         if tail != head:
             bad.append((harness.chunks[i].chunk_id, harness.chunks[i + 1].chunk_id))
     if bad:
-        raise AssertionFailed("相邻块重叠文本不一致: {}".format(bad),
+        raise AssertionFailed(f"相邻块重叠文本不一致: {bad}",
                               metrics={"bad_pairs": len(bad)})
 
 
@@ -65,7 +65,7 @@ async def document_content_covered(ctx: TestContext) -> None:
         if doc.text.strip() not in joined:  # 依赖语料文档短于 chunk_size（单块）；若被切分则 overlap 会破坏拼接串的子串关系
             missing.append(doc.id)
     if missing:
-        raise AssertionFailed("文档内容未被完整覆盖: {}".format(missing),
+        raise AssertionFailed(f"文档内容未被完整覆盖: {missing}",
                               metrics={"missing_docs": len(missing)})
 
 
@@ -78,5 +78,5 @@ async def chunk_ids_unique(ctx: TestContext) -> None:
     ids = [c.chunk_id for c in harness.chunks]
     dup = sorted({i for i in ids if ids.count(i) > 1})  # set 去重 + 排序，稳定输出重复 chunk_id 列表
     if dup:
-        raise AssertionFailed("chunk_id 重复: {}".format(dup),
+        raise AssertionFailed(f"chunk_id 重复: {dup}",
                               metrics={"duplicates": len(dup)})

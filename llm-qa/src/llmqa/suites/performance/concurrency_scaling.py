@@ -34,7 +34,7 @@ async def case_ramp_zero_error(ctx: TestContext) -> None:
     bad = [(i, s.error_rate, s.error_messages[:2]) for i, s in enumerate(ramp)
            if s.error_rate != 0]
     if bad:
-        raise AssertionFailed("阶梯并发出现错误: {}".format(bad),
+        raise AssertionFailed(f"阶梯并发出现错误: {bad}",
                               metrics={"failed_levels": len(bad),
                                        "levels": [s.error_rate for s in ramp]})
 
@@ -52,7 +52,7 @@ async def case_p95_scaling(ctx: TestContext) -> None:
     # 允许并发带来一定延迟退化，但不得超过 3 倍，否则判定扩展性失控
     if p95_20 > baseline * 3.0:
         raise AssertionFailed(
-            "并发 20 的 P95 {:.1f}ms 超过单并发 P95 {:.1f}ms 的 3 倍".format(p95_20, p95_1),
+            f"并发 20 的 P95 {p95_20:.1f}ms 超过单并发 P95 {p95_1:.1f}ms 的 3 倍",
             metrics={"p95_1_ms": p95_1, "p95_20_ms": p95_20, "ratio": p95_20 / baseline})
 
 
@@ -68,7 +68,6 @@ async def case_parallel_speedup(ctx: TestContext) -> None:
     serial_ms = mean_ms * lvl20.requests
     if lvl20.duration_ms >= serial_ms:
         raise AssertionFailed(
-            "并发 20 总耗时 {:.1f}ms 未低于串行估算 {:.1f}ms".format(
-                lvl20.duration_ms, serial_ms),
+            f"并发 20 总耗时 {lvl20.duration_ms:.1f}ms 未低于串行估算 {serial_ms:.1f}ms",
             metrics={"duration_ms": lvl20.duration_ms, "serial_estimate_ms": serial_ms,
                      "mean_ms": mean_ms})

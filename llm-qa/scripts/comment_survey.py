@@ -24,5 +24,4 @@ print("{:>6} {:>5} {:>5} {:>6} {:>5} {:>7}  文件".format(
 for ratio, path, total, comments, with_doc, ndefs, has_doc in rows:
     flag = " <<< 需增强" if (ratio < 0.08 or not has_doc
                              or (ndefs and with_doc / ndefs < 0.5)) else ""
-    print("{:6.1%} {:5d} {:5d} {:6d} {:5d} {:>7}  {}{}".format(
-        ratio, total, comments, ndefs, with_doc, str(has_doc), path, flag))
+    print(f"{ratio:6.1%} {total:5d} {comments:5d} {ndefs:6d} {with_doc:5d} {has_doc!s:>7}  {path}{flag}")

@@ -3,6 +3,7 @@ import asyncio
 
 from llmqa.assertors import AssertionFailed
 from llmqa.clients import ClientPool
+from llmqa.config import Settings
 from llmqa.core import (
     Severity,
     SkipTest,
@@ -11,9 +12,10 @@ from llmqa.core import (
     Verdict,
     clear_registry,
     get_registered_cases,
-    test as register_test,   # 别名避免 pytest 把装饰器当测试收集
 )
-from llmqa.config import Settings
+from llmqa.core import (
+    test as register_test,  # 别名避免 pytest 把装饰器当测试收集
+)
 from llmqa.datasets import DatasetManager
 from llmqa.prompts import PromptManager
 

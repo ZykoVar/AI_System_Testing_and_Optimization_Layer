@@ -74,4 +74,4 @@ async def token_limit(ctx: TestContext) -> None:
         temperature=0.0, max_tokens=max_tokens,
     )
     assert resp.usage.completion_tokens <= max_tokens, \
-        "输出 token {} 超过上限 {}".format(resp.usage.completion_tokens, max_tokens)  # usage 由 provider 回填；mock 按估算、真实 provider 以 API 返回为准
+        f"输出 token {resp.usage.completion_tokens} 超过上限 {max_tokens}"  # usage 由 provider 回填；mock 按估算、真实 provider 以 API 返回为准

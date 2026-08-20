@@ -75,5 +75,5 @@ async def faithfulness_judge_threshold(ctx: TestContext) -> None:
         criteria="答案必须与参考资料一致，忠实无编造")  # 用 score() 而非 assert_score()，以便失败时附带 reasoning 与指标
     if verdict.score < threshold:
         raise AssertionFailed(
-            "裁判评分 {:.1f} 低于阈值 {:.1f}: {}".format(verdict.score, threshold, verdict.reasoning),
+            f"裁判评分 {verdict.score:.1f} 低于阈值 {threshold:.1f}: {verdict.reasoning}",
             metrics={"judge_score": verdict.score})

@@ -60,7 +60,7 @@ async def e2e_latency(ctx: TestContext) -> None:
     limit = ctx.settings.thresholds.p95_latency_ms  # 延迟阈值取全局配置；mock 下近乎 0，真实 provider 下才有约束力
     if resp.latency_ms >= limit:  # 用 ≥ 而非 >，命中阈值即判超标，边界值从严
         raise AssertionFailed(
-            "端到端延迟 {:.1f}ms ≥ 阈值 {:.1f}ms".format(resp.latency_ms, limit),
+            f"端到端延迟 {resp.latency_ms:.1f}ms ≥ 阈值 {limit:.1f}ms",
             metrics={"latency_ms": resp.latency_ms})
 
 

@@ -11,7 +11,7 @@
 """
 
 # 注册子模块以触发 @test 装饰器（discover 只 import 包，需在此显式导入各模块）
-from llmqa.suites.performance import (  # noqa: F401
+from llmqa.suites.performance import (
     concurrency_scaling,
     cost_efficiency,
     latency,
@@ -22,11 +22,11 @@ from llmqa.suites.performance import (  # noqa: F401
 )
 
 __all__ = [
-    "latency",
-    "throughput",
     "concurrency_scaling",
     "cost_efficiency",
-    "token_efficiency",
+    "latency",
     "long_context",
     "rate_limit",
+    "throughput",
+    "token_efficiency",
 ]

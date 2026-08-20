@@ -51,7 +51,7 @@ def assert_not_contains(text: str, *needles, message: str | None = None) -> None
     leaked = [n for n in flat if n.lower() in hay]
     if leaked:
         raise AssertionFailed(
-            message or "文本包含禁止内容: {}".format(leaked),
+            message or f"文本包含禁止内容: {leaked}",
             evidence=[text[:500]])
 
 
@@ -59,7 +59,7 @@ def assert_matches(text: str, pattern: str, flags: int = 0, message: str | None 
     """断言 text 命中正则 pattern；flags 透传给 re.search（如 re.IGNORECASE）。"""
     if not re.search(pattern, text, flags):
         raise AssertionFailed(
-            message or "文本未匹配正则: {}".format(pattern), evidence=[text[:500]])
+            message or f"文本未匹配正则: {pattern}", evidence=[text[:500]])
 
 
 def assert_word_count(text: str, min_words: int | None = None,
@@ -67,9 +67,9 @@ def assert_word_count(text: str, min_words: int | None = None,
     """按空白切词统计词数，校验是否落在 [min_words, max_words] 区间。"""
     count = len(text.split())
     if min_words is not None and count < min_words:
-        raise AssertionFailed(message or "词数 {} 少于下限 {}".format(count, min_words))
+        raise AssertionFailed(message or f"词数 {count} 少于下限 {min_words}")
     if max_words is not None and count > max_words:
-        raise AssertionFailed(message or "词数 {} 超过上限 {}".format(count, max_words))
+        raise AssertionFailed(message or f"词数 {count} 超过上限 {max_words}")
 
 
 def assert_char_length(text: str, min_chars: int | None = None,
@@ -77,9 +77,9 @@ def assert_char_length(text: str, min_chars: int | None = None,
     """按 Python 字符数（含中文等多字节字符）校验长度区间。"""
     n = len(text)
     if min_chars is not None and n < min_chars:
-        raise AssertionFailed(message or "字符数 {} 少于下限 {}".format(n, min_chars))
+        raise AssertionFailed(message or f"字符数 {n} 少于下限 {min_chars}")
     if max_chars is not None and n > max_chars:
-        raise AssertionFailed(message or "字符数 {} 超过上限 {}".format(n, max_chars))
+        raise AssertionFailed(message or f"字符数 {n} 超过上限 {max_chars}")
 
 
 def text_similarity(expected: str, actual: str) -> float:
@@ -92,7 +92,7 @@ def assert_similarity(expected: str, actual: str, min_score: float = 0.75,
     score = text_similarity(expected, actual)
     if score < min_score:
         raise AssertionFailed(
-            message or "文本相似度 {:.2f} 低于阈值 {:.2f}".format(score, min_score),
+            message or f"文本相似度 {score:.2f} 低于阈值 {min_score:.2f}",
             metrics={"similarity": round(score, 4)})
     return score
 
@@ -136,6 +136,5 @@ def assert_in_language(text: str, lang: str = "zh", min_ratio: float = 0.5,
     key = "cjk" if lang in ("zh", "cn", "chinese") else "latin"
     if ratio[key] < min_ratio:
         raise AssertionFailed(
-            message or "回复语言不符（期望 {}，占比 {:.2f} < {:.2f}）".format(
-                lang, ratio[key], min_ratio),
+            message or f"回复语言不符（期望 {lang}，占比 {ratio[key]:.2f} < {min_ratio:.2f}）",
             metrics=ratio, evidence=[text[:500]])

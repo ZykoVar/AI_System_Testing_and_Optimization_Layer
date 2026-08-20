@@ -35,17 +35,14 @@ _VAR_RE = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}")
 
 class PromptError(RuntimeError):
     """Prompt 子系统的统一异常基类，便于调用方一次性捕获。"""
-    pass
 
 
 class PromptNotFound(PromptError):
     """请求的 Prompt id 或版本不存在。"""
-    pass
 
 
 class PromptRenderError(PromptError):
     """渲染阶段失败：缺少必填变量、使用了未声明变量或变量值为 None。"""
-    pass
 
 
 class VariableSpec(BaseModel):
@@ -87,7 +84,7 @@ class PromptTemplate(BaseModel):
 
     def full_text(self) -> str:
         """把全部消息拼成纯文本（[role] 前缀 + content），作为 diff 的输入。"""
-        return "\n\n".join("[{}]\n{}".format(m.role, m.content) for m in self.messages)
+        return "\n\n".join(f"[{m.role}]\n{m.content}" for m in self.messages)
 
 
 class PromptManager:
@@ -112,7 +109,7 @@ class PromptManager:
             self._pins.pop(prompt_id, None)
 
     # ---------- 加载与查询 ----------
-    def load(self) -> "PromptManager":
+    def load(self) -> PromptManager:
         """扫描 root 下全部 .yaml 重建索引；同一 id 可并存多个 version（二级键为版本号）。"""
         self._templates.clear()
         for path in sorted(self.root.rglob("*.yaml")):
@@ -151,14 +148,13 @@ class PromptManager:
         """按 id（可选 version）取模板；version 为 None 时取最新 active，无 active 回退最大版本号。"""
         versions = self._templates.get(prompt_id)
         if not versions:
-            raise PromptNotFound("Prompt 不存在: {}".format(prompt_id))
+            raise PromptNotFound(f"Prompt 不存在: {prompt_id}")
         if version is None:
             # 默认语义：取最新 active 版本；无 active 时回退到最大版本号
             active = [v for v, t in versions.items() if t.status == "active"]
             version = max(active) if active else max(versions)
         if version not in versions:
-            raise PromptNotFound("Prompt {} 无版本 v{}（现有: {}）".format(
-                prompt_id, version, sorted(versions)))
+            raise PromptNotFound(f"Prompt {prompt_id} 无版本 v{version}（现有: {sorted(versions)}）")
         return versions[version]
 
     # ---------- 渲染 ----------
@@ -176,11 +172,11 @@ class PromptManager:
         missing = [k for k, spec in template.variables.items()
                    if spec.required and k not in variables and spec.default is None]
         if missing:
-            raise PromptRenderError("Prompt {} 缺少必填变量: {}".format(prompt_id, missing))
+            raise PromptRenderError(f"Prompt {prompt_id} 缺少必填变量: {missing}")
         # 2. 模板中使用了未声明变量 → 严格模式下报错
         undeclared = template.used_variables - set(template.variables)
         if strict and undeclared:
-            raise PromptRenderError("Prompt {} 模板使用了未声明变量: {}".format(prompt_id, sorted(undeclared)))
+            raise PromptRenderError(f"Prompt {prompt_id} 模板使用了未声明变量: {sorted(undeclared)}")
         # 3. 应用默认值
         for k, spec in template.variables.items():
             if k not in variables and spec.default is not None:
@@ -199,12 +195,12 @@ class PromptManager:
         for t in self.list():
             used, declared = t.used_variables, set(t.variables)
             if used - declared:
-                problems.append("{}: 未声明变量 {}".format(t.id, sorted(used - declared)))
+                problems.append(f"{t.id}: 未声明变量 {sorted(used - declared)}")
             for k, spec in t.variables.items():
                 if k not in used and not spec.description:
-                    problems.append("{}: 声明了但未使用的变量 {}".format(t.id, k))
+                    problems.append(f"{t.id}: 声明了但未使用的变量 {k}")
             if not t.messages:
-                problems.append("{}: 无消息模板".format(t.id))
+                problems.append(f"{t.id}: 无消息模板")
         return problems
 
     def diff(self, prompt_id: str, v1: int, v2: int) -> str:
@@ -214,18 +210,18 @@ class PromptManager:
         return "".join(difflib.unified_diff(
             a.full_text().splitlines(keepends=True),
             b.full_text().splitlines(keepends=True),
-            fromfile="{} v{}".format(prompt_id, v1),
-            tofile="{} v{}".format(prompt_id, v2)))
+            fromfile=f"{prompt_id} v{v1}",
+            tofile=f"{prompt_id} v{v2}"))
 
     # ---------- 状态流转 ----------
     def promote(self, prompt_id: str, status: str, version: int | None = None) -> PromptTemplate:
         """状态流转（draft → active → deprecated），直接写回 YAML 文件。"""
         allowed = {"draft", "active", "deprecated"}
         if status not in allowed:
-            raise PromptError("非法状态 {}，允许: {}".format(status, sorted(allowed)))
+            raise PromptError(f"非法状态 {status}，允许: {sorted(allowed)}")
         template = self.get(prompt_id, version)
         if template.path is None:
-            raise PromptError("{} 无源文件，无法流转".format(prompt_id))
+            raise PromptError(f"{prompt_id} 无源文件，无法流转")
         data = yaml.safe_load(template.path.read_text(encoding="utf-8")) or {}
         data["status"] = status
         # 重新读盘只改 status 再整体写回：避免用内存模型序列化而丢失 YAML 中的其他字段与手工排版。
@@ -238,8 +234,8 @@ class PromptManager:
 def _render_value(variables: dict[str, Any], key: str, prompt_id: str) -> str:
     """取变量值并转字符串；缺失或为 None 抛 PromptRenderError，不允许静默输出空串。"""
     if key not in variables:
-        raise PromptRenderError("Prompt {} 渲染时缺少变量: {}".format(prompt_id, key))
+        raise PromptRenderError(f"Prompt {prompt_id} 渲染时缺少变量: {key}")
     value = variables[key]
     if value is None:
-        raise PromptRenderError("Prompt {} 变量 {} 为 None".format(prompt_id, key))
+        raise PromptRenderError(f"Prompt {prompt_id} 变量 {key} 为 None")
     return str(value)

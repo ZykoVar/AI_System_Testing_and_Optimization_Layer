@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from llmqa.core.registry import discover  # noqa: E402
-from llmqa.suites import DEFAULT_PACKAGES  # noqa: E402
+from llmqa.core.registry import discover
+from llmqa.suites import DEFAULT_PACKAGES
 
 # 套件 ID → 中文展示名与说明，供生成的目录文档引用
 SUITE_NAMES = {
@@ -47,13 +47,13 @@ def main() -> int:
         "> 本文件由 scripts/gen_catalog.py 从用例注册表自动生成，请勿手改；",
         "> 修改用例后运行 python scripts/gen_catalog.py 同步。",
         "",
-        "共 **{}** 个用例，覆盖 5 个套件。".format(len(cases)),
+        f"共 **{len(cases)}** 个用例，覆盖 5 个套件。",
         "",
     ]
     for suite in sorted(by_suite):
         suite_cases = sorted(by_suite[suite], key=lambda c: c.id)
         lines += [
-            "## {}（{} 例）".format(SUITE_NAMES.get(suite, suite), len(suite_cases)),
+            f"## {SUITE_NAMES.get(suite, suite)}（{len(suite_cases)} 例）",
             "",
             SUITE_DESC.get(suite, ""),
             "",
@@ -62,12 +62,11 @@ def main() -> int:
         ]
         for c in suite_cases:
             tags = ",".join(sorted(c.tags)) or "-"
-            lines.append("| {} | {} | {} | {} |".format(
-                c.id, c.name, c.severity.value, tags))
+            lines.append(f"| {c.id} | {c.name} | {c.severity.value} | {tags} |")
         lines.append("")
     # 整份文档一次性写出，保证原子性（避免半写状态被误读）
     out_path.write_text("\n".join(lines), encoding="utf-8")
-    print("已生成 {}（{} 个用例）".format(out_path, len(cases)))
+    print(f"已生成 {out_path}（{len(cases)} 个用例）")
     return 0
 
 

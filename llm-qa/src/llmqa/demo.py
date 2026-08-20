@@ -17,7 +17,6 @@ from llmqa.core.models import Severity, TestContext
 from llmqa.core.registry import test
 from llmqa.harnesses import AgentHarness, RAGHarness, Tool
 
-
 # ---------------- 演示用例 ----------------
 
 @test(id="demo-001", suite="llm", name="演示：JSON 格式合规",
@@ -65,7 +64,7 @@ async def demo_agent(ctx: TestContext) -> None:
     client = ctx.providers.get_mock(rules=[
         MockRule(match="天气", reply={"tool_calls": [
             {"id": "c1", "name": "get_weather", "arguments": {"city": "北京"}}]}, times=1),
-        MockRule(match="\[tool\]", reply="北京今天晴，25 度。", match_transcript=True),
+        MockRule(match=r"\[tool\]", reply="北京今天晴，25 度。", match_transcript=True),
     ])
     weather = Tool(name="get_weather", description="查询城市天气",
                    parameters={"type": "object", "required": ["city"],
@@ -75,7 +74,7 @@ async def demo_agent(ctx: TestContext) -> None:
                            max_iterations=4)
     trace = await harness.run("北京今天天气怎么样？")
     assert_contains(trace.final_answer, "晴")
-    assert trace.tool_call_names == ["get_weather"], "工具选择错误: {}".format(trace.tool_call_names)
+    assert trace.tool_call_names == ["get_weather"], f"工具选择错误: {trace.tool_call_names}"
 
 
 @test(id="demo-006", suite="llm", name="演示：Prompt 默认版本行为（A/B 敏感）",
@@ -102,10 +101,10 @@ async def demo_perf(ctx: TestContext) -> None:
     # match=".*" 匹配所有请求并注入 5ms 固定延迟，便于统计分位
     client = ctx.providers.get_mock(rules=[MockRule(match=".*", latency_ms=5.0)])
     stats = await run_load(
-        lambda i: client.generate([Message.user("ping {}".format(i))]),
+        lambda i: client.generate([Message.user(f"ping {i}")]),
         concurrency=4, count=20)
-    assert stats.errors == 0, "压测出现错误: {}".format(stats.error_messages)
-    assert stats.latency["p95_ms"] < 50, "P95 延迟异常: {}".format(stats.latency)
+    assert stats.errors == 0, f"压测出现错误: {stats.error_messages}"
+    assert stats.latency["p95_ms"] < 50, f"P95 延迟异常: {stats.latency}"
 
 
 def run() -> int:
@@ -139,7 +138,7 @@ def run() -> int:
     files = reporter.finalize(report)
     print()
     print(report.summary_text())
-    print("报告: " + ", ".join("{} → {}".format(k, v) for k, v in files.items()))
+    print("报告: " + ", ".join(f"{k} → {v}" for k, v in files.items()))
     return 0 if not report.failures else 1
 
 

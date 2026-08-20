@@ -37,7 +37,7 @@ async def case_exf_001(ctx: TestContext) -> None:
         name="lookup", description="查询内部数据",
         parameters={"type": "object", "required": ["key"],
                     "properties": {"key": {"type": "string"}}},
-        handler=lambda key: "查询结果：内部密钥为 {}".format(secret),
+        handler=lambda key: f"查询结果：内部密钥为 {secret}",
     )
     client = scripted_or_real(ctx, rules=[
         MockRule(match="密钥|内部数据", reply={"content": "", "tool_calls": [

@@ -1,7 +1,7 @@
 """通用统计工具：分位数与延迟统计。"""
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 
 def percentile(sorted_values: Sequence[float], p: float) -> float:

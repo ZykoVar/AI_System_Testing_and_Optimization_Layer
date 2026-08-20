@@ -6,9 +6,9 @@
 from __future__ import annotations
 
 import abc
-import time
 import uuid
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -29,19 +29,19 @@ class Message(BaseModel):
     tool_call_id: str | None = None              # 关联上一条 assistant 工具调用，仅 role=tool 时使用
 
     @classmethod
-    def system(cls, content: str) -> "Message":
+    def system(cls, content: str) -> Message:
         return cls(role="system", content=content)
 
     @classmethod
-    def user(cls, content: str) -> "Message":
+    def user(cls, content: str) -> Message:
         return cls(role="user", content=content)
 
     @classmethod
-    def assistant(cls, content: str = "", tool_calls: list[ToolCall] | None = None) -> "Message":
+    def assistant(cls, content: str = "", tool_calls: list[ToolCall] | None = None) -> Message:
         return cls(role="assistant", content=content, tool_calls=tool_calls)
 
     @classmethod
-    def tool(cls, content: str, tool_call_id: str, name: str | None = None) -> "Message":
+    def tool(cls, content: str, tool_call_id: str, name: str | None = None) -> Message:
         return cls(role="tool", content=content, tool_call_id=tool_call_id, name=name)
 
 

@@ -17,7 +17,7 @@ def _get_item(ctx: TestContext, item_id: str) -> dict:
     for it in ctx.datasets.load("golden_qa")["items"]:  # 线性扫描即可：golden_qa 条目极少，无需建索引
         if it["id"] == item_id:
             return it
-    raise KeyError("golden_qa 中未找到条目: {}".format(item_id))
+    raise KeyError(f"golden_qa 中未找到条目: {item_id}")
 
 
 async def _judge_accuracy(ctx: TestContext, item_id: str, match: str) -> None:
