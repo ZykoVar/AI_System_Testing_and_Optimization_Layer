@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "llm-qa 高层运行时架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/Simon214hz/llm_learn",
+      "revision": "4a58a82ba61461ddd97e01b102cc3cbcb89d51dc"
+    },
+    "views": [
+      { "id": "main-path", "label": "主执行路径", "focus": ["dev", "cli", "runner", "ctx", "client", "model"], "note": "一次运行的端到端主链路:CLI 引导 → 调度用例 → 取客户端 → 调用被测模型" },
+      { "id": "mock-offline", "label": "Mock 离线模式", "focus": ["cli", "assets", "registry", "runner", "ctx", "client"], "note": "provider=mock 时脚本化规则完全离线,零密钥验证测试逻辑" },
+      { "id": "report-ci", "label": "报告与 CI 门禁", "focus": ["runner", "reporter", "reports", "ci"], "note": "Verdict 与严重级进入四格式报告,CI 按门禁判定 job" }
+    ]
+  },
+  "components": [
+    { "id": "dev", "type": "external", "label": "工程师 / CI", "sublabel": "llmqa run", "pos": [55, 320], "size": [110, 64] },
+    { "id": "cli", "type": "frontend", "label": "llmqa CLI", "sublabel": "命令行入口", "pos": [255, 320], "size": [130, 64], "sources": [{ "path": "llm-qa/src/llmqa/cli.py", "label": "CLI 入口" }] },
+    { "id": "assets", "type": "database", "label": "配置与资产", "sublabel": "配置 / 提示词 / 数据集", "tag": "YAML", "pos": [255, 520], "size": [150, 64], "sources": [{ "path": "llm-qa/config/settings.yaml", "label": "运行时配置" }, { "path": "llm-qa/config/providers.yaml", "label": "Provider 接入" }] },
+    { "id": "registry", "type": "backend", "label": "TestRegistry", "sublabel": "@test 注册 · discover", "pos": [490, 520], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/registry.py", "label": "@test 注册表" }] },
+    { "id": "runner", "type": "backend", "label": "TestRunner", "sublabel": "并发 / 超时 / 重试", "tag": "asyncio", "pos": [490, 320], "size": [130, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/runner.py", "label": "TestRunner" }] },
+    { "id": "ctx", "type": "backend", "label": "TestContext", "sublabel": "上下文 + ClientPool", "pos": [725, 320], "size": [130, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/models.py", "label": "TestContext" }] },
+    { "id": "harness", "type": "backend", "label": "Harness 层", "sublabel": "RAG / Agent / Judge", "pos": [725, 130], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/harnesses/rag.py", "label": "RAGHarness" }, { "path": "llm-qa/src/llmqa/harnesses/agent.py", "label": "AgentHarness" }] },
+    { "id": "client", "type": "backend", "label": "LLMClient", "sublabel": "Mock / OpenAI / Anthropic", "pos": [960, 320], "size": [160, 64], "sources": [{ "path": "llm-qa/src/llmqa/clients/base.py", "label": "LLMClient 契约" }] },
+    { "id": "model", "type": "external", "label": "被测模型服务", "sublabel": "OpenAI 兼容 / Anthropic", "pos": [1185, 320], "size": [150, 64] },
+    { "id": "reporter", "type": "backend", "label": "Reporter", "sublabel": "四格式 + JUnit", "pos": [725, 520], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/reporter.py", "label": "Reporter" }] },
+    { "id": "reports", "type": "database", "label": "reports/<run_id>", "sublabel": "report.* + junit.xml", "pos": [950, 520], "size": [150, 64] },
+    { "id": "ci", "type": "external", "label": "GitHub Actions 门禁", "sublabel": "按严重级判定", "pos": [1195, 520], "size": [150, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "llm-qa 运行时(本地进程)", "wraps": ["cli", "assets", "registry", "runner", "ctx", "harness", "client", "reporter", "reports"] }
+  ],
+  "connections": [
+    { "id": "invoke", "from": "dev", "to": "cli", "label": "llmqa run", "variant": "emphasis" },
+    { "id": "load-assets", "from": "cli", "to": "assets", "label": "加载 YAML", "fromSide": "bottom", "toSide": "top" },
+    { "id": "discover", "from": "cli", "to": "registry", "label": "discover()" },
+    { "id": "case-list", "from": "registry", "to": "runner", "label": "用例清单", "fromSide": "top", "toSide": "bottom" },
+    { "id": "run-sync", "from": "cli", "to": "runner", "label": "run_sync()", "variant": "emphasis" },
+    { "id": "new-ctx", "from": "runner", "to": "ctx", "label": "新建上下文" },
+    { "id": "get-client", "from": "ctx", "to": "client", "label": "取客户端" },
+    { "id": "suite-call", "from": "ctx", "to": "harness", "label": "套件调用", "fromSide": "top", "toSide": "bottom" },
+    { "id": "shared-client", "from": "harness", "to": "client", "label": "共享 LLMClient", "fromSide": "right", "toSide": "top" },
+    { "id": "https", "from": "client", "to": "model", "label": "HTTPS" },
+    { "id": "verdicts", "from": "runner", "to": "reporter", "label": "Verdict / 指标" },
+    { "id": "write-report", "from": "reporter", "to": "reports", "label": "写入报告" },
+    { "id": "upload", "from": "reports", "to": "ci", "label": "artifacts" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "入口与引导", "items": ["llmqa CLI 加载 config/、prompts/、datasets/ YAML 资产", "discover() 导入五大套件,@test 用例注册进 TestRegistry"] },
+    { "dot": "emerald", "title": "执行引擎", "items": ["TestRunner:Semaphore 并发 + wait_for 超时 + fail-fast", "每用例独立 TestContext,经 ClientPool 共享客户端", "Verdict:PASS / FAIL(缺陷) / ERROR(基建) / SKIP"] },
+    { "dot": "rose", "title": "报告与门禁", "items": ["Reporter 产出 JSON / MD / HTML / JUnit 四格式", "退出码 0/1,CI 按严重级门禁判定 job 成败"] }
+  ]
+}
