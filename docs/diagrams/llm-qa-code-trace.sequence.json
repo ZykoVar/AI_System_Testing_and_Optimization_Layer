@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "llm-qa 完整调用链 · 每个步骤的文件与方法",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [982, 840],
+    "views": [
+      { "id": "boot", "label": "启动与发现", "focus": ["you", "cli", "engine"], "note": "cli.py::main → _run:repo_root → Settings.load → PromptManager.load → discover 五套件注册 → run_sync" },
+      { "id": "execute", "label": "执行与判定", "focus": ["engine", "case", "model"], "note": "Semaphore 并发 → 每用例 TestContext → scripted_or_real+build_client → Mock/真实调用 → Verdict 映射与重试" },
+      { "id": "report-ci", "label": "报告与门禁", "focus": ["engine", "you"], "note": "reporter.finalize 写四格式 → 退出码 → CI 四层与 gate.py 严重级门禁" }
+    ]
+  },
+  "participants": [
+    { "id": "you", "type": "external", "label": "工程师 / CI", "sublabel": "llmqa run" },
+    { "id": "cli", "type": "frontend", "label": "llmqa.cli", "sublabel": "cli.py · assets" },
+    { "id": "engine", "type": "backend", "label": "执行引擎", "sublabel": "registry · runner" },
+    { "id": "case", "type": "backend", "label": "用例与支撑", "sublabel": "suites·harness" },
+    { "id": "model", "type": "external", "label": "被测模型", "sublabel": "OpenAI/Anthropic" }
+  ],
+  "segments": [
+    { "from": 150, "to": 330, "label": "① 启动与发现" },
+    { "from": 350, "to": 620, "label": "② 并发执行与判定" },
+    { "from": 630, "to": 750, "label": "③ 报告与门禁" }
+  ],
+  "messages": [
+    { "id": "m01", "from": "you", "to": "cli", "y": 180, "label": "llmqa run", "variant": "emphasis", "note": "cli.py::main → _run" },
+    { "id": "m02", "from": "cli", "to": "engine", "y": 226, "label": "启动加载", "note": "config.py::repo_root + Settings.load;prompts/manager.py::load + datasets/loader.py" },
+    { "id": "m03", "from": "cli", "to": "engine", "y": 272, "label": "发现用例", "variant": "emphasis", "note": "core/registry.py::discover(DEFAULT_PACKAGES) 五套件 @test 注册 _REGISTRY" },
+    { "id": "m04", "from": "cli", "to": "engine", "y": 318, "label": "run_sync()", "variant": "emphasis", "note": "core/runner.py::run_sync → run_all:Semaphore(8)+wait_for(90s)" },
+    { "id": "m05", "from": "engine", "to": "case", "y": 364, "label": "建 TestContext", "note": "core/models.py — 每用例独立上下文,含 ClientPool" },
+    { "id": "m06", "from": "engine", "to": "case", "y": 410, "label": "执行用例", "variant": "emphasis", "note": "suites/* 的 @test 用例 case.fn(ctx)" },
+    { "id": "m07", "from": "case", "to": "model", "y": 456, "label": "取客户端", "note": "clients/factory.py::scripted_or_real + build_client" },
+    { "id": "m08", "from": "case", "to": "model", "y": 502, "label": "调用模型", "note": "openai_compat.py::generate — POST /chat/completions" },
+    { "id": "m09", "from": "model", "to": "case", "y": 548, "label": "响应返回", "variant": "return", "note": "LLMResponse:usage · latency_ms · cost_usd" },
+    { "id": "m10", "from": "case", "to": "engine", "y": 594, "label": "判定 → Verdict", "note": "assertors/* + harnesses/rag·agent + judge;_run_one 映射四结果" },
+    { "id": "m11", "from": "engine", "to": "case", "y": 640, "label": "ERROR 重试", "variant": "dashed", "note": "retries_on_error 退避 · fail_fast · max_cost" },
+    { "id": "m12", "from": "engine", "to": "you", "y": 686, "label": "汇总 + 退出码", "variant": "emphasis", "note": "reporter.py::finalize 四格式+junit;cli.py::main sys.exit" },
+    { "id": "m13", "from": "you", "to": "cli", "y": 732, "label": "CI 四层门禁", "note": "llm-qa.yml 静态→冒烟→全量→夜间;gate.py 按严重级" }
+  ],
+  "activations": [
+    { "participant": "cli", "from": 174, "to": 324, "type": "frontend" },
+    { "participant": "engine", "from": 220, "to": 334, "type": "backend" },
+    { "participant": "engine", "from": 452, "to": 646, "type": "backend" },
+    { "participant": "case", "from": 358, "to": 646, "type": "backend" },
+    { "participant": "model", "from": 450, "to": 554, "type": "external" },
+    { "participant": "you", "from": 680, "to": 738, "type": "external" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "启动:入口到调度", "items": ["cli.py::main→_run:repo_root→Settings.load→PromptManager.load→DatasetManager", "discover(DEFAULT_PACKAGES) 五套件 @test 注册进 _REGISTRY", "run_sync→run_all:Semaphore(8)+wait_for(90s) 并发调度"] },
+    { "dot": "emerald", "title": "执行:一次编写两态运行", "items": ["每用例独立 TestContext(含 ClientPool)", "scripted_or_real+build_client:mock 脚本离线 / openai_compat·anthropic 走 HTTPS", "_run_one 映射 Verdict;ERROR 退避重试,fail_fast 停 HIGH+,超预算 SKIP"] },
+    { "dot": "rose", "title": "收尾:报告到门禁", "items": ["reporter.finalize 写 JSON/MD/HTML/JUnit 到 reports/<run_id>/", "退出码 0/1;CI 四层=静态扫描→冒烟→全量→夜间真实", "scripts/gate.py 按 CRITICAL/HIGH/MEDIUM 严重级判定 job 成败"] }
+  ]
+}

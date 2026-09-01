@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "llm-qa 新手入门 · 一条命令的旅程",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "zero-config", "label": "零配置快速上手", "focus": ["run", "boot", "schedule", "suite-llm", "execute", "modes", "judge", "reportci"], "note": "不配任何 Key:默认走 Mock,离线验证测试逻辑" },
+      { "id": "five-suites", "label": "五类测试", "focus": ["suite-llm", "suite-rag", "suite-agent", "suite-security", "suite-perf", "execute"], "note": "LLM 评测 · RAG 专项 · Agent · 安全红队 · 性能压测,五类并行执行" },
+      { "id": "real-model", "label": "连接真实模型", "focus": ["run", "boot", "schedule", "suite-llm", "execute", "modes", "judge", "reportci"], "note": "配置 API Key 后,同一批用例直连真实模型" },
+      { "id": "verdict-retry", "label": "判定与重试", "focus": ["execute", "judge", "schedule", "reportci"], "note": "PASS/FAIL/ERROR/SKIP 四结果,ERROR 自动重试,CI 按严重级门禁" }
+    ]
+  },
+  "lanes": [
+    { "id": "you", "label": "你(工程师)" },
+    { "id": "cli", "label": "llmqa 命令行" },
+    { "id": "engine", "label": "执行引擎" },
+    { "id": "suites", "label": "④ 五类测试用例" },
+    { "id": "case", "label": "测试用例" },
+    { "id": "model", "label": "被测模型 · 两种跑法" },
+    { "id": "reportci", "label": "报告与门禁" }
+  ],
+  "phases": [
+    { "id": "prepare", "label": "准备", "fromCol": 0, "toCol": 1 },
+    { "id": "execute-phase", "label": "执行", "fromCol": 2, "toCol": 4, "variant": "emphasis" },
+    { "id": "finish", "label": "收尾", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["run", "boot", "schedule", "suite-llm", "execute", "modes", "judge", "reportci"],
+  "nodes": [
+    { "id": "run", "lane": "you", "col": 0, "type": "external", "label": "① 输入命令", "sublabel": "llmqa run", "tag": "零配置" },
+    { "id": "boot", "lane": "cli", "col": 1, "type": "frontend", "label": "② 加载配置", "sublabel": "收集 136 个内置用例", "tag": "--suite/--tag" },
+    { "id": "schedule", "lane": "engine", "col": 2, "type": "backend", "label": "③ 并发调度", "sublabel": "8 并发 · 90 秒超时", "tag": "asyncio" },
+    { "id": "suite-security", "lane": "suites", "col": 0, "type": "backend", "label": "安全红队", "width": 60 },
+    { "id": "suite-rag", "lane": "suites", "col": 1, "type": "backend", "label": "RAG 专项", "width": 60 },
+    { "id": "suite-llm", "lane": "suites", "col": 2, "type": "backend", "label": "LLM 评测", "width": 60 },
+    { "id": "suite-agent", "lane": "suites", "col": 3, "type": "backend", "label": "Agent", "width": 60 },
+    { "id": "suite-perf", "lane": "suites", "col": 4, "type": "backend", "label": "性能压测", "width": 60 },
+    { "id": "execute", "lane": "case", "col": 3, "type": "backend", "label": "⑤ 跑一个用例", "sublabel": "每用例独立上下文" },
+    { "id": "modes", "lane": "model", "col": 3, "type": "backend", "label": "⑥ 两种跑法", "sublabel": "Mock 默认 · 真实需 Key", "tag": "两态复用" },
+    { "id": "judge", "lane": "case", "col": 5, "type": "backend", "label": "⑦ 判定结果", "sublabel": "PASS/FAIL/ERROR/SKIP", "tag": "ERROR 自动重试" },
+    { "id": "reportci", "lane": "reportci", "col": 5, "type": "backend", "label": "⑧ 报告与门禁", "sublabel": "四格式 · CI 判定", "tag": "gate.py" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "run", "to": "boot", "label": "启动", "variant": "emphasis", "route": "drop", "fromSide": "bottom", "toSide": "top", "labelDy": 11 },
+    { "id": "e2", "from": "boot", "to": "schedule", "label": "用例清单", "variant": "emphasis", "route": "drop", "fromSide": "bottom", "toSide": "top", "labelDy": 11 },
+    { "id": "e3", "from": "schedule", "to": "suite-llm", "variant": "emphasis", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e4", "from": "schedule", "to": "suite-security", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e5", "from": "schedule", "to": "suite-rag", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e6", "from": "schedule", "to": "suite-agent", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e7", "from": "schedule", "to": "suite-perf", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e8", "from": "suite-llm", "to": "execute", "variant": "emphasis", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e9", "from": "suite-security", "to": "execute", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e10", "from": "suite-rag", "to": "execute", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e11", "from": "suite-agent", "to": "execute", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e12", "from": "suite-perf", "to": "execute", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e13", "from": "execute", "to": "modes", "variant": "emphasis", "route": "drop", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e14", "from": "modes", "to": "judge", "route": "auto" },
+    { "id": "e15", "from": "judge", "to": "reportci", "label": "汇总", "variant": "emphasis", "route": "drop", "fromSide": "bottom", "toSide": "top", "labelDy": 60 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "三个入门事实", "items": ["一条命令:llmqa run,零配置,默认 Mock 离线跑", "五类测试并行跑:LLM 评测 · RAG 专项 · Agent · 安全红队 · 性能压测", "报告自动生成:reports/<run_id>/ 四格式 + JUnit"] },
+    { "dot": "emerald", "title": "判定四结果", "items": ["PASS 通过 · FAIL 被测缺陷 · ERROR 基础故障(自动重试) · SKIP 环境不满足", "同一批用例,Mock 与真实模型两态复用", "严重级五档,CI 按 HIGH+ 门禁判定 job 成败"] },
+    { "dot": "rose", "title": "遇到问题看哪里", "items": ["FAIL → 被测模型/应用的问题;ERROR → 超时或框架问题", "llmqa report compare 对比上次运行,一眼看出回归"] }
+  ]
+}

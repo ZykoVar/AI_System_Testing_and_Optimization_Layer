@@ -10,25 +10,26 @@
       "revision": "4a58a82ba61461ddd97e01b102cc3cbcb89d51dc"
     },
     "views": [
-      { "id": "run-path", "label": "一次测试运行", "focus": ["dev", "cli", "engine", "client", "model", "reporter"], "note": "主链路:CLI 引导 → 执行引擎调度 → LLMClient 调用被测模型 → 报告" },
-      { "id": "prompt-gate", "label": "Prompt 发布门禁", "focus": ["cli", "prompt-mgmt", "gate"], "note": "prompts validate/scan 静态门禁与版本化管理,发布前必过扫描" },
-      { "id": "regression", "label": "回归对比闭环", "focus": ["reports", "compare", "gate"], "note": "历史报告对比与 Prompt A/B 双版本判定,回归结果进入 CI 门禁" },
-      { "id": "offline", "label": "Mock 离线态", "focus": ["cli", "assets", "suites", "engine", "client"], "note": "provider=mock 时脚本化规则完全离线,零密钥验证测试逻辑" }
+      { "id": "run-path", "label": "一次测试运行", "focus": ["dev", "cli", "engine", "client", "model", "reporter"], "note": "输入 llmqa run:CLI 加载 YAML 配置与提示词 → 发现 136 个用例 → 引擎 8 并发调度 → LLMClient 调用被测模型 → Verdict 汇总 → 四格式报告" },
+      { "id": "suites-view", "label": "五类测试", "focus": ["suites", "engine", "client", "model"], "note": "五类套件测模型不同侧面:LLM 评测看回答质量,RAG 看检索与引用,Agent 看工具行为,安全红队看攻防,性能看延迟与成本;共用同一引擎与客户端" },
+      { "id": "prompt-gate", "label": "Prompt 发布门禁", "focus": ["cli", "prompt-mgmt", "gate"], "note": "提示词像代码一样管理:版本化、diff、draft/active/deprecated 流转;发布前 PromptScanner 注入扫描;CI 四层门禁=静态扫描→冒烟→全量Mock→夜间真实模型" },
+      { "id": "regression", "label": "回归对比闭环", "focus": ["reports", "compare", "gate"], "note": "每次运行留下 reports/<run_id>/;report compare 对比两次运行判回归/改进;Prompt A/B 用同一批用例在 v1/v2 对跑,回归拉红 CI" },
+      { "id": "offline", "label": "Mock 离线态", "focus": ["cli", "assets", "suites", "engine", "client"], "note": "LLMClient 三态:Mock(离线) / OpenAI 兼容 / Anthropic;provider=mock 时按脚本规则回放,零密钥;配了 Key 同一用例直连真实模型——一次编写,两态运行" }
     ]
   },
   "components": [
-    { "id": "dev", "type": "external", "label": "工程师 / CI", "sublabel": "llmqa run", "pos": [55, 320], "size": [110, 64] },
-    { "id": "cli", "type": "frontend", "label": "llmqa CLI", "sublabel": "四大命令面", "pos": [265, 320], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/cli.py", "label": "CLI 入口" }] },
-    { "id": "assets", "type": "database", "label": "配置与资产", "sublabel": "配置 / 提示词 / 数据集", "tag": "YAML", "pos": [265, 540], "size": [150, 64], "sources": [{ "path": "llm-qa/config/settings.yaml", "label": "运行时配置" }, { "path": "llm-qa/config/providers.yaml", "label": "Provider 接入" }] },
-    { "id": "prompt-mgmt", "type": "backend", "label": "Prompt 管理", "sublabel": "版本化 · 扫描 · A/B", "pos": [265, 110], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/prompts/manager.py", "label": "PromptManager" }, { "path": "llm-qa/src/llmqa/prompts/guards.py", "label": "PromptScanner" }] },
-    { "id": "suites", "type": "backend", "label": "五大测试套件", "sublabel": "五个领域", "tag": "136 用例", "pos": [497, 540], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/suites/__init__.py", "label": "DEFAULT_PACKAGES" }] },
-    { "id": "engine", "type": "backend", "label": "执行引擎", "sublabel": "注册表 · Runner", "tag": "asyncio", "pos": [502, 320], "size": [140, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/registry.py", "label": "@test 注册表" }, { "path": "llm-qa/src/llmqa/core/runner.py", "label": "TestRunner" }, { "path": "llm-qa/src/llmqa/core/models.py", "label": "TestContext" }] },
-    { "id": "client", "type": "backend", "label": "LLMClient", "sublabel": "三态 Provider", "pos": [716, 320], "size": [130, 64], "sources": [{ "path": "llm-qa/src/llmqa/clients/base.py", "label": "LLMClient 契约" }] },
-    { "id": "model", "type": "external", "label": "被测模型服务", "sublabel": "OpenAI 兼容协议", "pos": [925, 320], "size": [150, 64] },
-    { "id": "reporter", "type": "backend", "label": "Reporter", "sublabel": "四格式 + JUnit", "pos": [685, 540], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/reporter.py", "label": "Reporter" }] },
-    { "id": "reports", "type": "database", "label": "reports/<run_id>", "sublabel": "四格式报告产物", "pos": [910, 540], "size": [150, 64] },
-    { "id": "compare", "type": "backend", "label": "运行间对比", "sublabel": "report compare", "pos": [1120, 540], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/compare.py", "label": "compare_outcomes" }] },
-    { "id": "gate", "type": "external", "label": "CI 门禁链", "sublabel": "GitHub Actions", "tag": "gate.py", "pos": [1100, 110], "size": [150, 64], "sources": [{ "path": "llm-qa/.github/workflows/llm-qa.yml", "label": "四层工作流" }, { "path": "llm-qa/scripts/gate.py", "label": "严重级门禁" }] }
+    { "id": "dev", "type": "external", "label": "工程师 / CI", "sublabel": "llmqa run", "pos": [55, 300], "size": [110, 64] },
+    { "id": "cli", "type": "frontend", "label": "llmqa CLI", "sublabel": "四大命令面", "pos": [265, 300], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/cli.py", "label": "CLI 入口" }] },
+    { "id": "assets", "type": "database", "label": "配置与资产", "sublabel": "配置 / 提示词 / 数据集", "tag": "YAML", "pos": [265, 500], "size": [150, 64], "sources": [{ "path": "llm-qa/config/settings.yaml", "label": "运行时配置" }, { "path": "llm-qa/config/providers.yaml", "label": "Provider 接入" }] },
+    { "id": "prompt-mgmt", "type": "backend", "label": "Prompt 管理", "sublabel": "版本化 · 扫描 · A/B", "pos": [265, 90], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/prompts/manager.py", "label": "PromptManager" }, { "path": "llm-qa/src/llmqa/prompts/guards.py", "label": "PromptScanner" }] },
+    { "id": "suites", "type": "backend", "label": "五大测试套件", "sublabel": "五类测试领域", "tag": "136 用例", "pos": [497, 500], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/suites/__init__.py", "label": "DEFAULT_PACKAGES" }] },
+    { "id": "engine", "type": "backend", "label": "执行引擎", "sublabel": "注册表 · Runner", "tag": "asyncio", "pos": [502, 300], "size": [140, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/registry.py", "label": "@test 注册表" }, { "path": "llm-qa/src/llmqa/core/runner.py", "label": "TestRunner" }, { "path": "llm-qa/src/llmqa/core/models.py", "label": "TestContext" }] },
+    { "id": "client", "type": "backend", "label": "LLMClient", "sublabel": "Mock/OpenAI/Anthropic", "pos": [735, 300], "size": [170, 64], "sources": [{ "path": "llm-qa/src/llmqa/clients/base.py", "label": "LLMClient 契约" }] },
+    { "id": "model", "type": "external", "label": "被测模型服务", "sublabel": "OpenAI 兼容协议", "pos": [960, 300], "size": [150, 64] },
+    { "id": "reporter", "type": "backend", "label": "Reporter", "sublabel": "JSON/MD/HTML/JUnit", "pos": [685, 500], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/reporter.py", "label": "Reporter" }] },
+    { "id": "reports", "type": "database", "label": "reports/<run_id>", "sublabel": "JSON/MD/HTML/JUnit", "pos": [910, 500], "size": [150, 64] },
+    { "id": "compare", "type": "backend", "label": "运行间对比", "sublabel": "report compare", "pos": [1084, 500], "size": [150, 64], "sources": [{ "path": "llm-qa/src/llmqa/core/compare.py", "label": "compare_outcomes" }] },
+    { "id": "gate", "type": "external", "label": "CI 门禁链", "sublabel": "GitHub Actions", "tag": "gate.py", "pos": [1100, 90], "size": [150, 64], "sources": [{ "path": "llm-qa/.github/workflows/llm-qa.yml", "label": "四层工作流" }, { "path": "llm-qa/scripts/gate.py", "label": "严重级门禁" }] }
   ],
   "boundaries": [
     { "kind": "region", "label": "llm-qa 本地进程", "wraps": ["cli", "assets", "prompt-mgmt", "suites", "engine", "client", "reporter"] }
@@ -43,14 +44,14 @@
     { "id": "https", "from": "client", "to": "model", "label": "HTTPS" },
     { "id": "verdicts", "from": "engine", "to": "reporter", "label": "Verdict / 指标" },
     { "id": "write-report", "from": "reporter", "to": "reports", "label": "写入报告" },
-    { "id": "history", "from": "reports", "to": "compare", "label": "对比", "labelDy": 30 },
-    { "id": "upload", "from": "reports", "to": "gate", "label": "artifacts 上传", "labelDy": 51 },
+    { "id": "history", "from": "reports", "to": "compare" },
+    { "id": "upload", "from": "reports", "to": "gate", "label": "artifacts 上传", "fromSide": "bottom", "toSide": "right", "via": [[985, 580], [1266, 580], [1266, 122]], "labelDy": 8 },
     { "id": "regression", "from": "compare", "to": "gate", "label": "回归判定", "fromSide": "top", "toSide": "bottom" },
     { "id": "scan", "from": "prompt-mgmt", "to": "gate", "label": "注入扫描门禁" }
   ],
   "cards": [
-    { "dot": "cyan", "title": "入口与资产", "items": ["llmqa CLI 四大命令面:run / prompts / report / demo", "YAML 资产:settings/providers 配置、版本化 Prompt、8 个数据集"] },
-    { "dot": "emerald", "title": "测试与执行", "items": ["llm/rag/agent/security/performance 五套件,136 内置用例", "五套件经 RAG/Agent Harness、LLM-as-Judge、run_load 压测支撑", "执行引擎:@test 注册表 · Semaphore 并发 · 超时/重试/fail-fast"] },
-    { "dot": "rose", "title": "报告 · 对比 · 门禁", "items": ["Reporter 产出 JSON/MD/HTML/JUnit;report compare 运行间回归对比", "CI 四层:静态扫描 → 冒烟 → 全量 → 夜间真实模型", "gate.py 按严重级门禁;Prompt A/B 双版本对比判定回归"] }
+    { "dot": "cyan", "title": "这是什么", "items": ["一条命令:llmqa run,默认 Mock 离线跑,零配置", "命令面:run·prompts·report·demo", "配了 Key,同一用例变真实验收"] },
+    { "dot": "emerald", "title": "五类测试各测什么", "items": ["LLM 评测:格式·指令·事实·幻觉", "RAG:检索·分块·忠实·引用", "Agent:工具·规划·循环·预算", "安全:注入·越狱·PII·外泄", "性能:延迟·吞吐·成本·限流"] },
+    { "dot": "rose", "title": "报告 · 门禁 · 扩展", "items": ["报告:JSON/MD/HTML/JUnit,CI 按严重级门禁", "CI 四层:静态扫描→冒烟→全量→夜间", "report compare 一眼看出回归", "扩展:新 Provider/套件/数据集 + examples/docs"] }
   ]
 }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 2.16.0-dev.0">
-  <title>llm-qa 项目全景架构</title>
+  <title>llm-qa 新手入门 · 一条命令的旅程</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -4948,12 +4948,12 @@
            data-preset-badge-blueprint="蓝图 / 修订 01"
            data-preset-badge-editorial="编辑风格 / 现场笔记">
         <div class="pulse-dot"></div>
-        <h1>llm-qa 项目全景架构</h1>
+        <h1>llm-qa 新手入门 · 一条命令的旅程</h1>
       </div>
     </div>
 
-    <script id="archify-guided-views-data" type="application/json">[{"id":"run-path","label":"一次测试运行","focus":["dev","cli","engine","client","model","reporter"],"note":"输入 llmqa run:CLI 加载 YAML 配置与提示词 → 发现 136 个用例 → 引擎 8 并发调度 → LLMClient 调用被测模型 → Verdict 汇总 → 四格式报告"},{"id":"suites-view","label":"五类测试","focus":["suites","engine","client","model"],"note":"五类套件测模型不同侧面:LLM 评测看回答质量,RAG 看检索与引用,Agent 看工具行为,安全红队看攻防,性能看延迟与成本;共用同一引擎与客户端"},{"id":"prompt-gate","label":"Prompt 发布门禁","focus":["cli","prompt-mgmt","gate"],"note":"提示词像代码一样管理:版本化、diff、draft/active/deprecated 流转;发布前 PromptScanner 注入扫描;CI 四层门禁=静态扫描→冒烟→全量Mock→夜间真实模型"},{"id":"regression","label":"回归对比闭环","focus":["reports","compare","gate"],"note":"每次运行留下 reports/\u003crun_id\u003e/;report compare 对比两次运行判回归/改进;Prompt A/B 用同一批用例在 v1/v2 对跑,回归拉红 CI"},{"id":"offline","label":"Mock 离线态","focus":["cli","assets","suites","engine","client"],"note":"LLMClient 三态:Mock(离线) / OpenAI 兼容 / Anthropic;provider=mock 时按脚本规则回放,零密钥;配了 Key 同一用例直连真实模型——一次编写,两态运行"}]</script>
-    <script id="archify-source-evidence-data" type="application/json">{"schemaVersion":1,"verified":true,"repository":{"url":"https://github.com/Simon214hz/llm_learn","revision":"4a58a82ba61461ddd97e01b102cc3cbcb89d51dc","shortRevision":"4a58a82"},"referenceCount":14,"nodes":{"cli":[{"path":"llm-qa/src/llmqa/cli.py","label":"CLI 入口","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/cli.py"}],"assets":[{"path":"llm-qa/config/settings.yaml","label":"运行时配置","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/config/settings.yaml"},{"path":"llm-qa/config/providers.yaml","label":"Provider 接入","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/config/providers.yaml"}],"prompt-mgmt":[{"path":"llm-qa/src/llmqa/prompts/manager.py","label":"PromptManager","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/prompts/manager.py"},{"path":"llm-qa/src/llmqa/prompts/guards.py","label":"PromptScanner","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/prompts/guards.py"}],"suites":[{"path":"llm-qa/src/llmqa/suites/__init__.py","label":"DEFAULT_PACKAGES","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/suites/__init__.py"}],"engine":[{"path":"llm-qa/src/llmqa/core/registry.py","label":"@test 注册表","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/core/registry.py"},{"path":"llm-qa/src/llmqa/core/runner.py","label":"TestRunner","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/core/runner.py"},{"path":"llm-qa/src/llmqa/core/models.py","label":"TestContext","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/core/models.py"}],"client":[{"path":"llm-qa/src/llmqa/clients/base.py","label":"LLMClient 契约","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/clients/base.py"}],"reporter":[{"path":"llm-qa/src/llmqa/core/reporter.py","label":"Reporter","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/core/reporter.py"}],"compare":[{"path":"llm-qa/src/llmqa/core/compare.py","label":"compare_outcomes","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/src/llmqa/core/compare.py"}],"gate":[{"path":"llm-qa/.github/workflows/llm-qa.yml","label":"四层工作流","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/.github/workflows/llm-qa.yml"},{"path":"llm-qa/scripts/gate.py","label":"严重级门禁","href":"https://github.com/Simon214hz/llm_learn/blob/4a58a82ba61461ddd97e01b102cc3cbcb89d51dc/llm-qa/scripts/gate.py"}]}}</script>
+    <script id="archify-guided-views-data" type="application/json">[{"id":"zero-config","label":"零配置快速上手","focus":["run","boot","schedule","suite-llm","execute","modes","judge","reportci"],"note":"不配任何 Key:默认走 Mock,离线验证测试逻辑"},{"id":"five-suites","label":"五类测试","focus":["suite-llm","suite-rag","suite-agent","suite-security","suite-perf","execute"],"note":"LLM 评测 · RAG 专项 · Agent · 安全红队 · 性能压测,五类并行执行"},{"id":"real-model","label":"连接真实模型","focus":["run","boot","schedule","suite-llm","execute","modes","judge","reportci"],"note":"配置 API Key 后,同一批用例直连真实模型"},{"id":"verdict-retry","label":"判定与重试","focus":["execute","judge","schedule","reportci"],"note":"PASS/FAIL/ERROR/SKIP 四结果,ERROR 自动重试,CI 按严重级门禁"}]</script>
+
     <script id="archify-i18n-data" type="application/json">{"locale":"zh-CN","messages":{"viewer.kind.frontend":"前端","viewer.kind.backend":"后端","viewer.kind.database":"数据库","viewer.kind.cloud":"云服务","viewer.kind.security":"安全","viewer.kind.messagebus":"消息总线","viewer.kind.external":"外部系统","viewer.kind.neutral":"中性","viewer.kind.node":"节点","viewer.kind.start":"开始","viewer.kind.active":"活动","viewer.kind.waiting":"等待","viewer.kind.decision":"决策","viewer.kind.success":"成功","viewer.kind.failure":"失败","viewer.toolbar.actions":"图表操作","viewer.theme.toggle.title":"切换主题（T）","viewer.theme.toggle":"切换颜色主题","viewer.theme.dark":"深色","viewer.theme.light":"浅色","viewer.preset.choose.title":"选择视觉风格（S 循环切换）","viewer.preset.choose":"选择视觉风格","viewer.preset.style":"风格","viewer.preset.menu":"视觉风格","viewer.preset.identity":"视觉表达","viewer.preset.cycles":"S 循环切换","viewer.preset.classic":"经典","viewer.preset.classic.short":"经典","viewer.preset.classic.hint":"稳定的技术默认风格","viewer.preset.flow":"信号流","viewer.preset.flow.short":"流动","viewer.preset.flow.hint":"突出动态流向","viewer.preset.blueprint":"蓝图","viewer.preset.blueprint.hint":"工程评审","viewer.preset.editorial":"编辑风格","viewer.preset.editorial.hint":"适合发布与上线说明","viewer.preset.badge.signalFlow":"信号流","viewer.preset.badge.blueprint":"蓝图 / 修订 01","viewer.preset.badge.editorial":"编辑风格 / 现场笔记","viewer.preset.badge.editorialPlate":"ARCHIFY / 图版 04","viewer.preset.current":"当前视觉风格：{style}。选择视觉风格","viewer.motion.live":"动态","viewer.motion.still":"静态","viewer.motion.pause":"暂停动效","viewer.motion.resume":"恢复动效","viewer.motion.reduced":"已根据减少动态效果偏好暂停动效","viewer.motion.hidden":"页面不可见时已暂停动效","viewer.motion.yielding":"暂停动效；当前让位于{owner}","viewer.motion.yielding.title":"动态预览已启用 · 正在让位于{owner}","viewer.owner.story":"引导故事","viewer.owner.chapter":"当前章节","viewer.owner.chapterPreview":"章节差异预览","viewer.owner.handoff":"章节交接","viewer.owner.route":"路径探测","viewer.owner.lens":"语义透镜","viewer.owner.relationship":"关系预览","viewer.owner.intent":"意图追踪","viewer.owner.focus":"语义聚焦","viewer.owner.legend":"图例预览","viewer.owner.reader":"读者交互","viewer.present.enter":"进入演示模式","viewer.present.enter.title":"演示模式（F）","viewer.present.exit":"退出演示模式","viewer.present.exit.title":"退出演示模式（F 或 Escape）","viewer.present.present":"演示","viewer.present.exit.label":"退出","viewer.export.button":"导出","viewer.export.button.title":"导出图表（E）","viewer.export.diagram":"导出图表","viewer.export.menu":"导出","viewer.export.subtitle":"便携、整洁的输出","viewer.export.share":"分享","viewer.export.shareCard":"分享卡片","viewer.export.routeShareCard":"路径分享卡片","viewer.export.reachShareCard":"可达范围分享卡片","viewer.export.copyShareCard":"复制分享卡片","viewer.export.copyDiagram":"复制图表","viewer.export.clipboardPng":"复制 PNG 到剪贴板","viewer.export.raster":"位图","viewer.export.image":"图像","viewer.export.lossless":"无损图像","viewer.export.compact":"紧凑图像","viewer.export.modern":"现代图像格式","viewer.export.vectorMotion":"矢量与动效","viewer.export.vectorMotion.heading":"矢量与动效","viewer.export.editable":"可编辑矢量图","viewer.export.motion6s":"6 秒动效","viewer.export.unsupported":"当前浏览器不支持","viewer.export.clipboardUnsupported":"当前浏览器不支持写入图片剪贴板","viewer.export.clipboardUnsupported.period":"当前浏览器不支持写入图片剪贴板。","viewer.export.clipboardUnsupported.short":"此浏览器不支持写入图片剪贴板。","viewer.export.motionUnavailable":"当前浏览器无法录制动效","viewer.export.webmUnavailable":"当前浏览器不支持 WebM","viewer.export.failed":"导出失败：{message}","viewer.export.unknownVariant":"未知的分享卡片类型：{variant}","viewer.export.routeRequired":"请先追踪路径，再导出路径分享卡片","viewer.export.reachRequired":"请先追踪编写可达范围，再导出可达范围分享卡片","viewer.export.unknown":"未知错误","viewer.export.routeFailed":"路径分享卡片导出失败：{message}","viewer.export.reachFailed":"可达范围分享卡片导出失败：{message}","viewer.export.copyFailed":"复制失败：{message}","viewer.export.copiedPng":"已将 PNG 复制到剪贴板","viewer.export.copiedShare":"已复制分享卡片","viewer.export.downloadedShare":"已下载分享卡片","viewer.export.downloadedRoute":"已下载路径分享卡片","viewer.export.downloadedReach":"已下载可达范围分享卡片","viewer.export.downloadedWebm":"已下载 WebM","viewer.export.recording":"正在录制 6 秒动效…","viewer.export.card.routeSummary.one":"路径：{source} → {target} · {count} 个有向跳转","viewer.export.card.routeSummary.other":"路径：{source} → {target} · {count} 个有向跳转","viewer.export.card.reachSummary":"从{origin}开始的编写{direction} · {nodes} · {links} · 最深 {hops}","viewer.export.card.node.one":"{count} 个节点","viewer.export.card.node.other":"{count} 个节点","viewer.export.card.link.one":"{count} 条连接","viewer.export.card.link.other":"{count} 条连接","viewer.export.card.hop.one":"{count} 跳","viewer.export.card.hop.other":"{count} 跳","viewer.export.card.routeBadge":"ARCHIFY · 路径 · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction}可达范围","viewer.export.card.defaultBadge":"ARCHIFY · {preset} · {theme}","viewer.export.direction.upstream":"上游","viewer.export.direction.downstream":"下游","viewer.export.error.canvasUnavailable":"无法为{label}使用画布","viewer.export.error.contextUnavailable":"无法为{label}创建二维画布上下文","viewer.export.error.toBlobUnavailable":"{label}无法使用 canvas.toBlob","viewer.export.error.toBlobNull":"{label}的 canvas.toBlob 未返回数据","viewer.export.error.variantsCombined":"无法同时组合多种分享卡片类型","viewer.export.error.viewerState":"分享卡片导出无法移除临时 Viewer 状态","viewer.export.error.routeState":"路径卡片导出无法安全保留已解析路径","viewer.export.error.reachState":"可达范围卡片导出无法安全保留编写的可达范围","viewer.export.error.webmRequirements":"WebM 动效导出需要追踪动画及浏览器 MediaRecorder 支持","viewer.export.error.mediaRecorder":"MediaRecorder 录制失败","viewer.export.error.emptyWebm":"MediaRecorder 生成了空的 WebM","viewer.export.error.webmBackground":"无法为 WebM 导出加载 SVG 背景","viewer.guided.region":"图表引导视图","viewer.guided.previous":"上一个引导视图","viewer.guided.previous.title":"上一个引导视图（[）","viewer.guided.next":"下一个引导视图","viewer.guided.next.title":"下一个引导视图（]）","viewer.guided.views":"引导视图","viewer.guided.explore":"探索此系统","viewer.guided.intro":"沿精选路径逐步查看，而不改变源图表。","viewer.guided.trail":"故事轨迹","viewer.guided.beat":"节点","viewer.guided.nextBeat":"下一步","viewer.guided.play":"播放引导故事","viewer.guided.play.title":"播放引导故事（P）","viewer.guided.pause":"暂停引导故事","viewer.guided.pause.title":"暂停引导故事（P）","viewer.guided.replay":"重播引导故事","viewer.guided.replay.title":"重播引导故事（P）","viewer.guided.playStory":"播放故事","viewer.guided.pauseStory":"暂停","viewer.guided.replayStory":"重播故事","viewer.guided.motionUnavailable":"静态模式下无法播放故事","viewer.guided.enableMotion":"切换为动态模式以播放引导故事","viewer.guided.selectBeatLink":"选择故事节点以复制其精确链接","viewer.guided.copyMoment":"复制此刻","viewer.guided.momentCopied":"已复制时刻链接","viewer.guided.momentCopyFailed":"无法复制故事时刻链接","viewer.guided.copied":"已复制","viewer.guided.copyFailed":"复制失败","viewer.guided.showAll":"显示全部","viewer.guided.showAll.aria":"显示完整图表","viewer.guided.chapters":"故事章节","viewer.guided.storyTrail":"{label}的故事轨迹：{count} 个节点","viewer.guided.chapter.open":"打开第 {index}/{total} 章：{label}，{count} 个停靠点","viewer.guided.chapter.current":"当前第 {index}/{total} 章：{label}，{count} 个停靠点","viewer.guided.chapter.selectedNodes":"已选择 {count} 个节点","viewer.guided.chapter.stops":"{count} 个停靠点","viewer.guided.chapter.stop.one":"{count} 个停靠点","viewer.guided.chapter.stop.other":"{count} 个停靠点","viewer.guided.chapter.current.title":"{label} — 当前章节，{count} 个停靠点","viewer.guided.chapter.delta.expanded":"{stay} 个保留，{enter} 个进入，{leave} 个离开","viewer.guided.chapter.delta.aria":"打开第 {index}/{total} 章：{label}。章节聚焦差异：{delta}","viewer.guided.chapter.delta.title":"{label} — 章节聚焦 {delta}","viewer.guided.handoff":"{from} → {to} · 经由{label}","viewer.guided.share.chapter":"章节 {index} / {total}","viewer.guided.share.initial":"章节 01 / 01","viewer.guided.share.default":"引导章节","viewer.guided.state.ready":"就绪","viewer.guided.state.playing":"播放中","viewer.guided.state.settled":"已完成","viewer.guided.state.paused":"已暂停","viewer.guided.state.pinned":"已固定","viewer.guided.state.still":"静态","viewer.guided.share.step":"步骤 {index} / {total} · {label}","viewer.guided.share.staticMoment":"{step} · 静态时刻","viewer.guided.share.complete":"{count} 个步骤已完成 · {note}","viewer.guided.share.settled":"路径已稳定，可供阅读。","viewer.guided.share.staticPath":"{count} 个步骤 · 静态路径","viewer.guided.share.ready":"{count} 个步骤 · 就绪","viewer.guided.share.aria":"{state}，第 {index}/{total} 章：{label}。{beat}。{route}","viewer.guided.beat.start":"节点 {index} / {total} · {label} · 起点","viewer.guided.beat.forward":"节点 {index} / {total} · {from} → {to}","viewer.guided.beat.reverse":"节点 {index} / {total} · {from} → {to} · 反向编写连接","viewer.guided.beat.multiple":"节点 {index} / {total} · {from} ⇄ {to} · {count} 条编写连接","viewer.guided.beat.group":"节点 {index} / {total} · {from} · {to} · 分组 · 无直接连接","viewer.guided.beat.aria.prefix":"故事节点 {index}/{total}：{label}。","viewer.guided.beat.aria.start":"起点。","viewer.guided.beat.aria.forward":"从{from}经一条正向编写关系到达。","viewer.guided.beat.aria.reverse":"从{from}出发；编写关系实际由{to}指向{from}。","viewer.guided.beat.aria.multiple":"从{from}经 {count} 条编写关系到达；不使用任意动效。","viewer.guided.beat.aria.group":"与{from}分组展示，没有直接编写关系。","viewer.guided.caption.start":"起点","viewer.guided.caption.grouped":"分组过渡 · 无直接编写连接","viewer.guided.caption.more":" +另外 {count} 条","viewer.guided.caption.reverse":"反向编写关系","viewer.guided.caption.relationships":"{count} 条编写关系","viewer.guided.caption.relationship":"编写关系","viewer.guided.caption.direction":"编写方向：{from} → {to}","viewer.guided.caption.starting":"编写起点","viewer.guided.beatLink":"复制当前故事时刻链接：第 {index}/{total} 个节点：{label}","viewer.guided.noStory":"此图表没有编写引导故事。","viewer.guide.eyebrow":"图表指南","viewer.guide.close":"关闭图表指南","viewer.guide.inspecting":"正在检查已编译语义","viewer.guide.actions":"图表探索操作","viewer.guide.find":"查找任意节点","viewer.guide.find.hint":"搜索标签、职责、类型和稳定 ID。","viewer.guide.route":"追踪路径","viewer.guide.route.aria":"追踪有向路径","viewer.guide.route.hint":"查看两个语义节点如何按编写方向连接。","viewer.guide.map":"查看完整系统","viewer.guide.map.hint":"打开带实时视口和稳定节点的语义雷达。","viewer.guide.lens":"比较语义类型","viewer.guide.lens.hint":"统计角色、显示流量并比较直接编写的连接。","viewer.guide.story":"播放引导故事","viewer.guide.story.hint":"浏览已编写的章节和真实关系。","viewer.guide.present":"进入演示模式","viewer.guide.present.hint":"让实时图表占满视口，同时不改变导出。","viewer.guide.shortcuts":"其他键盘快捷键","viewer.guide.shortcut.export":"导出","viewer.guide.shortcut.theme":"主题","viewer.guide.shortcut.style":"风格","viewer.guide.shortcut.reset":"重置","viewer.guide.shortcut.zoomIn":"放大","viewer.guide.shortcut.zoomOut":"缩小","viewer.guide.shortcut.close":"关闭","viewer.guide.facts":"{nodes} · {relationships} · {views}","viewer.guide.fact.node.one":"{count} 个语义节点","viewer.guide.fact.node.other":"{count} 个语义节点","viewer.guide.fact.relationship.one":"{count} 条关系","viewer.guide.fact.relationship.other":"{count} 条关系","viewer.guide.fact.view.one":"{count} 个引导视图","viewer.guide.fact.view.other":"{count} 个引导视图","viewer.guide.story.available.one":"浏览 {count} 个已编写章节及其真实关系。","viewer.guide.story.available.other":"浏览 {count} 个已编写章节及其真实关系。","viewer.guide.story.unavailable":"此图表没有编写引导故事。","viewer.guide.open":"打开图表指南","viewer.guide.noStory":"此图表没有编写引导故事。","viewer.finder.title":"查找节点","viewer.finder.close":"关闭节点查找器","viewer.finder.placeholder":"搜索标签或 ID","viewer.finder.search":"搜索图表节点","viewer.finder.results":"图表节点","viewer.finder.empty":"没有匹配的节点","viewer.finder.result.focus":"聚焦{label}","viewer.finder.result.routeStart":"选择{label}作为路径起点","viewer.finder.result.routeTarget":"选择{label}作为路径终点，{links}","viewer.finder.status.empty":"没有匹配的节点","viewer.finder.status.count.one":"{count} 个匹配节点","viewer.finder.status.count.other":"{count} 个匹配节点","viewer.finder.noun.nodes":"个节点","viewer.finder.link.one":"{count} 条连接","viewer.finder.link.other":"{count} 条连接","viewer.finder.result.focus.one":"聚焦{label}，{count} 条相关连接","viewer.finder.result.focus.other":"聚焦{label}，{count} 条相关连接","viewer.finder.status.filtered":"{visible}/{available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"语义护照","viewer.passport.metadata":"节点元数据","viewer.passport.evidence":"已验证的源代码证据","viewer.passport.verified":"已验证来源","viewer.passport.reach":"编写可达范围","viewer.passport.reach.trace":"追踪编写的可达性","viewer.passport.upstream":"上游","viewer.passport.downstream":"下游","viewer.passport.upstream.trace":"追踪上游编写可达性","viewer.passport.downstream.trace":"追踪下游编写可达性","viewer.passport.close":"关闭语义护照","viewer.passport.copy":"复制链接","viewer.passport.copy.focus":"复制聚焦节点的链接","viewer.passport.relations":"关系","viewer.passport.relations.show":"显示关联关系","viewer.passport.relations.hide":"隐藏关联关系","viewer.passport.relations.list":"关联关系","viewer.passport.copyRelation":"复制关系","viewer.passport.copyNode":"复制节点","viewer.passport.copyPinned":"复制固定关系的链接","viewer.passport.copySource":"复制来源节点的链接","viewer.passport.copy.focused.success":"已复制聚焦节点链接","viewer.passport.copy.pinned.success":"已复制固定关系链接","viewer.passport.copy.focused.failed":"无法复制聚焦节点链接","viewer.passport.copy.pinned.failed":"无法复制固定关系链接","viewer.passport.relationship.none":"没有关联关系","viewer.passport.relationship.count.one":"{count} 条关系","viewer.passport.relationship.count.other":"{count} 条关系","viewer.passport.relationship.show.one":"显示 {count} 条关联关系","viewer.passport.relationship.show.other":"显示 {count} 条关联关系","viewer.passport.relationship.summary":"{out} 条出向 · {in} 条入向{loops}","viewer.passport.relationship.loops":" · {count} 条自环","viewer.passport.relationship.explorer":"直接关系浏览器","viewer.passport.relationship.help":"使用方向键浏览关系。按 Enter 或空格键固定详情；按 Escape 清除。","viewer.passport.relationship.loopsBack":"回环","viewer.passport.relationship.connectsTo":"连接到","viewer.passport.relationship.connectsFrom":"连接自","viewer.passport.relationship.pinned":"已固定关系 · {from} → {to} · {label}","viewer.passport.relationship.inspect":"检查第 {index}/{total} 条关系：{from} 到 {to}，{label}。按 Enter 查看详情。","viewer.passport.relationship.group.out":"出向","viewer.passport.relationship.group.in":"入向","viewer.passport.relationship.group.loop":"自环","viewer.passport.relationship.row":"{group}：{relationship}，{neighbor}","viewer.passport.relationship.direction.out":"出 →","viewer.passport.relationship.direction.in":"← 入","viewer.passport.relationship.direction.loop":"自环","viewer.passport.sourceCount.one":"{count} 个已验证来源引用","viewer.passport.sourceCount.other":"{count} 个已验证来源引用","viewer.passport.sourceMarker":"来源","viewer.passport.beacon.one":"{count} 个已验证来源；聚焦此节点以检查","viewer.passport.beacon.other":"{count} 个已验证来源；聚焦此节点以检查","viewer.passport.repository.open":"打开已验证的仓库修订版本 {revision}","viewer.passport.source.open":"打开修订版本 {revision} 中已验证的来源 {path}","viewer.passport.source.openLink":"打开 ↗","viewer.passport.reach.upstream.one":"追踪 {count} 个上游编写节点","viewer.passport.reach.upstream.other":"追踪 {count} 个上游编写节点","viewer.passport.reach.downstream.one":"追踪 {count} 个下游编写节点","viewer.passport.reach.downstream.other":"追踪 {count} 个下游编写节点","viewer.passport.reach.noUpstream":"没有上游编写节点","viewer.passport.reach.noDownstream":"没有下游编写节点","viewer.passport.reach.status":"{direction} · {nodes} 个节点 · {links} 条连接 · 最深 {hops} 跳","viewer.route.eyebrow":"路径探测","viewer.route.start":"选择起点节点","viewer.route.start.find":"查找起点","viewer.route.start.find.aria":"查找路径起点","viewer.route.copy":"复制链接","viewer.route.copy.aria":"复制已追踪路径的链接","viewer.route.clear":"清除","viewer.route.clear.aria":"清除路径探测","viewer.route.traced":"已追踪路径","viewer.route.pickTwo":"在图表中选择两个语义节点","viewer.route.pickOne":"在图表中选择一个语义节点","viewer.route.controls":"路径旅程控制","viewer.route.previous":"上一个路径位置","viewer.route.play":"播放路径旅程","viewer.route.pause":"暂停路径旅程","viewer.route.replay":"重播路径旅程","viewer.route.next":"下一个路径位置","viewer.route.journey":"旅程","viewer.route.pause.label":"暂停","viewer.route.replay.label":"重播","viewer.route.overview":"总览","viewer.route.overview.aria":"显示完整路径总览","viewer.route.instructions":"先选择来源，再选择目标；方向很重要。","viewer.route.destination":"选择从{label}出发的目标","viewer.route.destination.find":"查找目标","viewer.route.destination.find.aria":"查找可达的路径目标","viewer.route.differentDestination":"选择其他目标","viewer.route.distinct":"一条路径需要两个不同的语义节点。","viewer.route.unreachable":"没有通往{label}的有向路径","viewer.route.unreachable.detail":"从{source}无法到达{target}。请选择高亮的目标。","viewer.route.start.instructions":"选择来源。下一步只会显示有向可达的目标。","viewer.route.copy.success":"已复制路径链接","viewer.route.copy.failed":"无法复制路径链接","viewer.route.position":"路径位置 {index}/{total}：{label}","viewer.route.step":"第 {index}/{total} 步 · {phase} · {label}","viewer.route.motionRequired":"自动旅程需要动态模式","viewer.route.trigger.clear":"清除已追踪路径","viewer.route.overview.status":"{nodes} · {hops} · 最短编写路径","viewer.route.overview.node.one":"{count} 个节点","viewer.route.overview.node.other":"{count} 个节点","viewer.route.overview.hop.one":"{count} 个有向跳转","viewer.route.overview.hop.other":"{count} 个有向跳转","viewer.route.phase.playing":"播放中","viewer.route.phase.complete":"已完成","viewer.route.phase.inspecting":"检查中","viewer.route.destination.count.one":"有 {count} 个有向目标可用。请选择高亮节点。","viewer.route.destination.count.other":"有 {count} 个有向目标可用。请选择高亮节点。","viewer.route.noOutgoing":"此处没有可用的出向路径。请清除后选择其他来源。","viewer.route.result.title":"{source} 到 {target}","viewer.route.finder.source.title":"选择路径起点","viewer.route.finder.source.placeholder":"搜索路径来源","viewer.route.finder.source.empty":"没有匹配的路径来源","viewer.route.finder.source.results":"可作为路径起点的节点","viewer.route.finder.source.noun":"个路径来源","viewer.route.finder.source.badge":"起点","viewer.route.finder.target.title":"从{label}出发的目标","viewer.route.finder.target.placeholder":"搜索可达目标","viewer.route.finder.target.empty":"没有匹配的可达目标","viewer.route.finder.target.results":"可达路径目标","viewer.route.finder.target.noun":"个可达目标","viewer.route.hop.one":"{count} 跳","viewer.route.hop.other":"{count} 跳","viewer.lens.eyebrow":"语义透镜","viewer.lens.title":"比较系统角色","viewer.lens.close":"关闭语义透镜","viewer.lens.instruction":"最多选择两种语义类型。选择一种可显示其真实流量；选择两种只比较直接编写的关系。","viewer.lens.kinds":"语义类型","viewer.lens.choose":"选择一种类型以检查其节点和相连关系。","viewer.lens.copy":"复制语义透镜链接","viewer.lens.clear":"清除语义透镜","viewer.lens.open":"打开语义透镜","viewer.lens.openActive":"打开当前语义透镜","viewer.lens.legend":"语义图例","viewer.lens.legend.inspect.one":"检查{label}，{count} 个节点","viewer.lens.legend.inspect.other":"检查{label}，{count} 个节点","viewer.lens.kind.count.one":"{label}，{count} 个节点","viewer.lens.kind.count.other":"{label}，{count} 个节点","viewer.lens.compare.one":"{first} → {second}：{forward} · {second} → {first}：{reverse} · 共 {count} 条直接关系","viewer.lens.compare.other":"{first} → {second}：{forward} · {second} → {first}：{reverse} · 共 {count} 条直接关系","viewer.lens.single":"{nodes} · {relationships} · 已连接节点保持可见","viewer.lens.node.one":"{count} 个{label}节点","viewer.lens.node.other":"{count} 个{label}节点","viewer.lens.relationship.one":"{count} 条相连关系","viewer.lens.relationship.other":"{count} 条相连关系","viewer.radar.title":"语义雷达","viewer.radar.building":"正在构建总览","viewer.radar.openFull":"打开完整语义雷达","viewer.radar.open":"打开雷达","viewer.radar.close":"关闭语义雷达","viewer.radar.surface":"图表总览。点击节点进行聚焦，或使用方向键平移。","viewer.radar.click":"点击节点","viewer.radar.drag":"拖动平移","viewer.radar.space":"语义雷达需要更多地图可见空间。","viewer.radar.nodes":"语义图表雷达节点","viewer.radar.focus":"从语义雷达聚焦{label}","viewer.radar.status":"{count} 个节点 · {viewport}","viewer.radar.fullMap":"{count} 个节点 · 完整地图","viewer.radar.compacted":"已收紧雷达，避免遮挡语义护照或地图控件。","viewer.radar.cancelWaiting":"取消等待更多地图空间的语义雷达","viewer.radar.needsSpace":"语义雷达需要更多可见地图空间","viewer.radar.viewport.full":"完整地图","viewer.radar.viewport.width":"宽度 {percent}%","viewer.radar.viewport.scale":"视口 {percent}%","viewer.nav.controls":"图表视图控制","viewer.nav.route":"追踪有向路径","viewer.nav.route.title":"追踪路径（R）","viewer.nav.route.short":"路径","viewer.nav.radar":"打开语义雷达","viewer.nav.radar.title":"语义雷达（M）","viewer.nav.radar.short":"地图","viewer.nav.lens":"打开语义透镜","viewer.nav.lens.title":"语义透镜（L）","viewer.nav.lens.short":"透镜","viewer.nav.find":"查找节点","viewer.nav.find.title":"查找节点（/）","viewer.nav.guide":"打开图表指南","viewer.nav.guide.title":"图表指南（?）","viewer.nav.zoomOut":"缩小","viewer.nav.zoomOut.title":"缩小（-）","viewer.nav.reset":"重置图表视图","viewer.nav.reset.title":"重置视图（0）","viewer.nav.read":"阅读","viewer.nav.zoomIn":"放大","viewer.nav.zoomIn.title":"放大（+）","viewer.nav.camera":"{hint}。重置图表视图","viewer.nav.camera.title":"{semantic}{hint} · 重置视图（0）","viewer.nav.camera.semantic":"语义相机已启用 · ","viewer.nav.level.map":"概览","viewer.nav.level.read":"阅读","viewer.nav.level.full":"完整","viewer.nav.level.auto":"自动","viewer.nav.detail.map":"放大以显示关系标签和节点上下文","viewer.nav.detail.read":"再次放大以显示标签和注释","viewer.nav.detail.full":"完整图表详情","viewer.intent.summary":"{label}。{out} 条出向，{in} 条入向{loops}。共 {total} 条连接。按 Enter 查看详情。","viewer.intent.loops":"，{count} 条自环","viewer.common.copied":"已复制","viewer.common.copyFailed":"复制失败","viewer.common.copyLink":"复制链接","viewer.common.clear":"清除","viewer.common.close":"关闭"}}</script>
     <div class="guided-views no-print" id="guided-views" hidden aria-label="图表引导视图">
       <button id="guided-view-prev" type="button" aria-label="上一个引导视图" title="上一个引导视图（[）">&#8592;</button>
@@ -4997,9 +4997,9 @@
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
          data-preset-badge-editorial-plate="ARCHIFY / 图版 04">
-      <svg viewBox="0 0 1290 652" role="img" lang="zh-CN" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
-        <title id="archify-diagram-title">llm-qa 项目全景架构</title>
-        <desc id="archify-diagram-description">由 Archify 生成的架构图。</desc>
+      <svg viewBox="0 0 720 1024" role="img" lang="zh-CN" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
+        <title id="archify-diagram-title">llm-qa 新手入门 · 一条命令的旅程</title>
+        <desc id="archify-diagram-description">由 Archify 生成的工作流图。</desc>
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -5022,244 +5022,237 @@
         <!-- Background Grid -->
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        <!-- Boundaries (behind everything) -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="llm-qa 本地进程" x="235" y="60" width="700" height="524" rx="12" class="c-region" stroke-width="1"/>
+        <!-- Swimlanes -->
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-0" x="40" y="52" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="74" class="t-dim" font-size="10" font-weight="600">01 / 你(工程师)</text>
 
-        <!-- Connection paths (before components for correct z-order) -->
-        <path data-edge-from="dev" data-edge-to="cli" data-edge-label="llmqa run" data-edge-key="0" data-edge-id="invoke" data-composition-points="165,332;265,332" d="M 165 332 L 265 332" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="cli" data-edge-to="assets" data-edge-label="加载 YAML" data-edge-key="1" data-edge-id="load-assets" data-composition-points="340,364;340,500" d="M 340 364 L 340 500" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="cli" data-edge-to="prompt-mgmt" data-edge-label="prompts 命令" data-edge-key="2" data-edge-id="prompts-cmd" data-composition-points="340,300;340,154" d="M 340 300 L 340 154" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="suites" data-edge-to="engine" data-edge-label="@test 注册" data-edge-key="3" data-edge-id="register" data-composition-points="572,500;572,364" d="M 572 500 L 572 364" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="cli" data-edge-to="engine" data-edge-label="run_sync()" data-edge-key="4" data-edge-id="run-sync" data-composition-points="415,332;502,332" d="M 415 332 L 502 332" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="engine" data-edge-to="client" data-edge-label="取客户端" data-edge-key="5" data-edge-id="get-client" data-composition-points="642,325;735,325" d="M 642 325 L 735 325" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="client" data-edge-to="model" data-edge-label="HTTPS" data-edge-key="6" data-edge-id="https" data-composition-points="905,332;960,332" d="M 905 332 L 960 332" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="engine" data-edge-to="reporter" data-edge-label="Verdict / 指标" data-edge-key="7" data-edge-id="verdicts" data-composition-points="642,339;663.5,339;663.5,532;685,532" d="M 642 339 L 655.5 339 Q 663.5 339 663.5 347 L 663.5 524 Q 663.5 532 671.5 532 L 685 532" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="reporter" data-edge-to="reports" data-edge-label="写入报告" data-edge-key="8" data-edge-id="write-report" data-composition-points="835,532;910,532" d="M 835 532 L 910 532" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="reports" data-edge-to="compare" data-edge-key="9" data-edge-id="history" data-composition-points="1060,532;1084,532" d="M 1060 532 L 1084 532" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="reports" data-edge-to="gate" data-edge-label="artifacts 上传" data-edge-key="10" data-edge-id="upload" data-composition-points="985,564;985,580;1266,580;1266,122;1250,122" d="M 985 564 L 985 572 Q 985 580 993 580 L 1258 580 Q 1266 580 1266 572 L 1266 130 Q 1266 122 1258 122 L 1250 122" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="compare" data-edge-to="gate" data-edge-label="回归判定" data-edge-key="11" data-edge-id="regression" data-composition-points="1159,500;1159,327;1175,327;1175,154" d="M 1159 500 L 1159 335 Q 1159 327 1167 327 L 1167 327 Q 1175 327 1175 319 L 1175 154" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="prompt-mgmt" data-edge-to="gate" data-edge-label="注入扫描门禁" data-edge-key="12" data-edge-id="scan" data-composition-points="415,122;1100,122" d="M 415 122 L 1100 122" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-1" x="40" y="176" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="198" class="t-dim" font-size="10" font-weight="600">02 / llmqa 命令行</text>
 
-        <!-- Components -->
-        <g id="node-dev" data-node-id="dev" data-node-label="工程师 / CI" tabindex="0" role="button" aria-label="聚焦工程师 / CI，llmqa run, 架构组件" aria-pressed="false" data-node-kind="external" data-node-sublabel="llmqa run" data-node-context="架构组件">
-          <title>工程师 / CI · llmqa run · 架构组件</title>
-          <rect x="55" y="300" width="110" height="64" rx="6" class="c-mask"/>
-          <rect x="55" y="300" width="110" height="64" rx="6" class="c-external" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(61 306) scale(0.6875)">
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-2" x="40" y="300" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="322" class="t-dim" font-size="10" font-weight="600">03 / 执行引擎</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-3" x="40" y="424" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="446" class="t-dim" font-size="10" font-weight="600">04 / ④ 五类测试用例</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-4" x="40" y="548" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="570" class="t-dim" font-size="10" font-weight="600">05 / 测试用例</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-5" x="40" y="672" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="694" class="t-dim" font-size="10" font-weight="600">06 / 被测模型 · 两种跑法</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="lane" data-composition-frame-id="lane-6" x="40" y="796" width="640" height="104" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="54" y="818" class="t-dim" font-size="10" font-weight="600">07 / 报告与门禁</text>
+
+        <!-- Phase headers -->
+        <line x1="42" y1="35" x2="266" y2="35" class="a-default" stroke-width="1.1"/>
+        <rect x="42" y="27" width="224" height="16" rx="4" class="c-mask"/>
+        <text x="154" y="39" class="t-muted" font-size="8" font-weight="600" text-anchor="middle">准备</text>
+        <line x1="254" y1="35" x2="546" y2="35" class="a-emphasis" stroke-width="1.1"/>
+        <rect x="254" y="27" width="292" height="16" rx="4" class="c-mask"/>
+        <text x="400" y="39" class="t-backend" font-size="8" font-weight="600" text-anchor="middle">执行</text>
+        <line x1="579" y1="35" x2="671" y2="35" class="a-dashed" stroke-width="1.1"/>
+        <rect x="579" y="27" width="92" height="16" rx="4" class="c-mask"/>
+        <text x="625" y="39" class="t-messagebus" font-size="8" font-weight="600" text-anchor="middle">收尾</text>
+
+        <!-- Workflow groups -->
+
+
+        <!-- Edge paths -->
+        <path data-edge-from="run" data-edge-to="boot" data-edge-label="启动" data-edge-key="0" data-edge-id="e1" data-composition-points="88,153;88,166;220,166;220,209" d="M 88 153 L 88 166 L 220 166 L 220 209" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="boot" data-edge-to="schedule" data-edge-label="用例清单" data-edge-key="1" data-edge-id="e2" data-composition-points="220,277;220,290;300,290;300,333" d="M 220 277 L 220 290 L 300 290 L 300 333" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="schedule" data-edge-to="suite-llm" data-edge-key="2" data-edge-id="e3" data-composition-points="300,401;300,414;300,414;300,465" d="M 300 401 L 300 414 L 300 414 L 300 465" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="schedule" data-edge-to="suite-security" data-edge-key="3" data-edge-id="e4" data-composition-points="300,401;300,414;88,414;88,465" d="M 300 401 L 300 414 L 88 414 L 88 465" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="schedule" data-edge-to="suite-rag" data-edge-key="4" data-edge-id="e5" data-composition-points="300,401;300,414;220,414;220,465" d="M 300 401 L 300 414 L 220 414 L 220 465" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="schedule" data-edge-to="suite-agent" data-edge-key="5" data-edge-id="e6" data-composition-points="300,401;300,414;430,414;430,465" d="M 300 401 L 300 414 L 430 414 L 430 465" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="schedule" data-edge-to="suite-perf" data-edge-key="6" data-edge-id="e7" data-composition-points="300,401;300,414;500,414;500,465" d="M 300 401 L 300 414 L 500 414 L 500 465" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="suite-llm" data-edge-to="execute" data-edge-key="7" data-edge-id="e8" data-composition-points="300,517;300,538;430,538;430,589" d="M 300 517 L 300 538 L 430 538 L 430 589" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="suite-security" data-edge-to="execute" data-edge-key="8" data-edge-id="e9" data-composition-points="88,517;88,538;430,538;430,589" d="M 88 517 L 88 538 L 430 538 L 430 589" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="suite-rag" data-edge-to="execute" data-edge-key="9" data-edge-id="e10" data-composition-points="220,517;220,538;430,538;430,589" d="M 220 517 L 220 538 L 430 538 L 430 589" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="suite-agent" data-edge-to="execute" data-edge-key="10" data-edge-id="e11" data-composition-points="430,517;430,538;430,538;430,589" d="M 430 517 L 430 538 L 430 538 L 430 589" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="suite-perf" data-edge-to="execute" data-edge-key="11" data-edge-id="e12" data-composition-points="500,517;500,538;430,538;430,589" d="M 500 517 L 500 538 L 430 538 L 430 589" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="execute" data-edge-to="modes" data-edge-key="12" data-edge-id="e13" data-composition-points="430,641;430,662;430,662;430,705" d="M 430 641 L 430 662 L 430 662 L 430 705" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="modes" data-edge-to="judge" data-edge-key="13" data-edge-id="e14" data-composition-points="476,739;625,739;625,649" d="M 476 739 L 625 739 L 625 649" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="judge" data-edge-to="reportci" data-edge-label="汇总" data-edge-key="14" data-edge-id="e15" data-composition-points="625,649;625,724;625,724;625,829" d="M 625 649 L 625 724 L 625 724 L 625 829" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+
+        <!-- Nodes -->
+        <g id="node-run" data-node-id="run" data-node-label="① 输入命令" tabindex="0" role="button" aria-label="聚焦① 输入命令，llmqa run, 你(工程师) › 准备" aria-pressed="false" data-node-kind="external" data-node-sublabel="llmqa run" data-node-tag="零配置" data-node-context="你(工程师) › 准备">
+          <title>① 输入命令 · llmqa run · 你(工程师) › 准备 · 零配置</title>
+          <rect x="42" y="85" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="42" y="85" width="92" height="68" rx="6" class="c-external" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(48 91) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="110" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">工程师 / CI</text>
-        <text data-detail="context" x="110" y="346" class="t-muted" font-size="9" text-anchor="middle">llmqa run</text>
+          <text data-node-label="" data-detail-anchor="" x="88" y="106" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">① 输入命令</text>
+          <text data-detail="context" x="88" y="123" class="t-muted" font-size="8" text-anchor="middle">llmqa run</text>
+        <text data-detail="fine" x="88" y="141" class="t-external" font-size="7" text-anchor="middle">零配置</text>
         </g>
 
-        <g id="node-cli" data-node-id="cli" data-node-label="llmqa CLI" tabindex="0" role="button" aria-label="聚焦llmqa CLI，四大命令面, llm-qa 本地进程" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="四大命令面" data-node-context="llm-qa 本地进程">
-          <title>llmqa CLI · 四大命令面 · llm-qa 本地进程</title>
-          <rect x="265" y="300" width="150" height="64" rx="6" class="c-mask"/>
-          <rect x="265" y="300" width="150" height="64" rx="6" class="c-frontend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(271 306) scale(0.6875)">
+        <g id="node-boot" data-node-id="boot" data-node-label="② 加载配置" tabindex="0" role="button" aria-label="聚焦② 加载配置，收集 136 个内置用例, llmqa 命令行 › 准备" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="收集 136 个内置用例" data-node-tag="--suite/--tag" data-node-context="llmqa 命令行 › 准备">
+          <title>② 加载配置 · 收集 136 个内置用例 · llmqa 命令行 › 准备 · --suite/--tag</title>
+          <rect x="174" y="209" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="174" y="209" width="92" height="68" rx="6" class="c-frontend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(180 215) scale(0.6875)">
             <rect x="2" y="3" width="12" height="10" rx="2"/>
             <path d="M2 6.5h12"/>
             <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
             <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="340" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">llmqa CLI</text>
-        <text data-detail="context" x="340" y="346" class="t-muted" font-size="9" text-anchor="middle">四大命令面</text>
+          <text data-node-label="" data-detail-anchor="" x="220" y="230" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">② 加载配置</text>
+          <text data-detail="context" x="220" y="247" class="t-muted" font-size="7.3" text-anchor="middle">收集 136 个内置用例</text>
+        <text data-detail="fine" x="220" y="265" class="t-frontend" font-size="7" text-anchor="middle">--suite/--tag</text>
         </g>
 
-        <g id="node-assets" data-node-id="assets" data-node-label="配置与资产" tabindex="0" role="button" aria-label="聚焦配置与资产，配置 / 提示词 / 数据集, llm-qa 本地进程" aria-pressed="false" data-node-kind="database" data-node-sublabel="配置 / 提示词 / 数据集" data-node-tag="YAML" data-node-context="llm-qa 本地进程">
-          <title>配置与资产 · 配置 / 提示词 / 数据集 · llm-qa 本地进程 · YAML</title>
-          <rect x="265" y="500" width="150" height="64" rx="6" class="c-mask"/>
-          <rect x="265" y="500" width="150" height="64" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(271 506) scale(0.6875)">
-            <ellipse cx="8" cy="4" rx="5" ry="2"/>
-            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="340" y="530" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">配置与资产</text>
-        <text data-detail="context" x="340" y="546" class="t-muted" font-size="9" text-anchor="middle">配置 / 提示词 / 数据集</text>
-        <text data-detail="fine" x="340" y="556" class="t-database" font-size="7" text-anchor="middle">YAML</text>
-        </g>
-
-        <g id="node-prompt-mgmt" data-node-id="prompt-mgmt" data-node-label="Prompt 管理" tabindex="0" role="button" aria-label="聚焦Prompt 管理，版本化 · 扫描 · A/B, llm-qa 本地进程" aria-pressed="false" data-node-kind="backend" data-node-sublabel="版本化 · 扫描 · A/B" data-node-context="llm-qa 本地进程">
-          <title>Prompt 管理 · 版本化 · 扫描 · A/B · llm-qa 本地进程</title>
-          <rect x="265" y="90" width="150" height="64" rx="6" class="c-mask"/>
-          <rect x="265" y="90" width="150" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(271 96) scale(0.6875)">
+        <g id="node-schedule" data-node-id="schedule" data-node-label="③ 并发调度" tabindex="0" role="button" aria-label="聚焦③ 并发调度，8 并发 · 90 秒超时, 执行引擎 › 执行" aria-pressed="false" data-node-kind="backend" data-node-sublabel="8 并发 · 90 秒超时" data-node-tag="asyncio" data-node-context="执行引擎 › 执行">
+          <title>③ 并发调度 · 8 并发 · 90 秒超时 · 执行引擎 › 执行 · asyncio</title>
+          <rect x="254" y="333" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="254" y="333" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(260 339) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="340" y="120" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Prompt 管理</text>
-        <text data-detail="context" x="340" y="136" class="t-muted" font-size="9" text-anchor="middle">版本化 · 扫描 · A/B</text>
+          <text data-node-label="" data-detail-anchor="" x="300" y="354" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">③ 并发调度</text>
+          <text data-detail="context" x="300" y="371" class="t-muted" font-size="7.7" text-anchor="middle">8 并发 · 90 秒超时</text>
+        <text data-detail="fine" x="300" y="389" class="t-backend" font-size="7" text-anchor="middle">asyncio</text>
         </g>
 
-        <g id="node-suites" data-node-id="suites" data-node-label="五大测试套件" tabindex="0" role="button" aria-label="聚焦五大测试套件，五类测试领域, llm-qa 本地进程" aria-pressed="false" data-node-kind="backend" data-node-sublabel="五类测试领域" data-node-tag="136 用例" data-node-context="llm-qa 本地进程">
-          <title>五大测试套件 · 五类测试领域 · llm-qa 本地进程 · 136 用例</title>
-          <rect x="497" y="500" width="150" height="64" rx="6" class="c-mask"/>
-          <rect x="497" y="500" width="150" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(503 506) scale(0.6875)">
+        <g id="node-suite-security" data-node-id="suite-security" data-node-label="安全红队" tabindex="0" role="button" aria-label="聚焦安全红队，④ 五类测试用例 › 准备" aria-pressed="false" data-node-kind="backend" data-node-context="④ 五类测试用例 › 准备">
+          <title>安全红队 · ④ 五类测试用例 › 准备</title>
+          <rect x="58" y="465" width="60" height="52" rx="6" class="c-mask"/>
+          <rect x="58" y="465" width="60" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(64 471) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="572" y="530" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">五大测试套件</text>
-        <text data-detail="context" x="572" y="546" class="t-muted" font-size="9" text-anchor="middle">五类测试领域</text>
-        <text data-detail="fine" x="572" y="556" class="t-backend" font-size="7" text-anchor="middle">136 用例</text>
+          <text data-node-label="" x="88" y="486" class="t-primary" font-size="10.8" font-weight="600" text-anchor="middle">安全红队</text>
         </g>
 
-        <g id="node-engine" data-node-id="engine" data-node-label="执行引擎" tabindex="0" role="button" aria-label="聚焦执行引擎，注册表 · Runner, llm-qa 本地进程" aria-pressed="false" data-node-kind="backend" data-node-sublabel="注册表 · Runner" data-node-tag="asyncio" data-node-context="llm-qa 本地进程">
-          <title>执行引擎 · 注册表 · Runner · llm-qa 本地进程 · asyncio</title>
-          <rect x="502" y="300" width="140" height="64" rx="6" class="c-mask"/>
-          <rect x="502" y="300" width="140" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(508 306) scale(0.6875)">
+        <g id="node-suite-rag" data-node-id="suite-rag" data-node-label="RAG 专项" tabindex="0" role="button" aria-label="聚焦RAG 专项，④ 五类测试用例 › 准备" aria-pressed="false" data-node-kind="backend" data-node-context="④ 五类测试用例 › 准备">
+          <title>RAG 专项 · ④ 五类测试用例 › 准备</title>
+          <rect x="190" y="465" width="60" height="52" rx="6" class="c-mask"/>
+          <rect x="190" y="465" width="60" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(196 471) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="572" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">执行引擎</text>
-        <text data-detail="context" x="572" y="346" class="t-muted" font-size="9" text-anchor="middle">注册表 · Runner</text>
-        <text data-detail="fine" x="572" y="356" class="t-backend" font-size="7" text-anchor="middle">asyncio</text>
+          <text data-node-label="" x="220" y="486" class="t-primary" font-size="10.8" font-weight="600" text-anchor="middle">RAG 专项</text>
         </g>
 
-        <g id="node-client" data-node-id="client" data-node-label="LLMClient" tabindex="0" role="button" aria-label="聚焦LLMClient，Mock/OpenAI/Anthropic, llm-qa 本地进程" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Mock/OpenAI/Anthropic" data-node-context="llm-qa 本地进程">
-          <title>LLMClient · Mock/OpenAI/Anthropic · llm-qa 本地进程</title>
-          <rect x="735" y="300" width="170" height="64" rx="6" class="c-mask"/>
-          <rect x="735" y="300" width="170" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(741 306) scale(0.6875)">
+        <g id="node-suite-llm" data-node-id="suite-llm" data-node-label="LLM 评测" tabindex="0" role="button" aria-label="聚焦LLM 评测，④ 五类测试用例 › 执行" aria-pressed="false" data-node-kind="backend" data-node-context="④ 五类测试用例 › 执行">
+          <title>LLM 评测 · ④ 五类测试用例 › 执行</title>
+          <rect x="270" y="465" width="60" height="52" rx="6" class="c-mask"/>
+          <rect x="270" y="465" width="60" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(276 471) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="820" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">LLMClient</text>
-        <text data-detail="context" x="820" y="346" class="t-muted" font-size="9" text-anchor="middle">Mock/OpenAI/Anthropic</text>
+          <text data-node-label="" x="300" y="486" class="t-primary" font-size="10.8" font-weight="600" text-anchor="middle">LLM 评测</text>
         </g>
 
-        <g id="node-model" data-node-id="model" data-node-label="被测模型服务" tabindex="0" role="button" aria-label="聚焦被测模型服务，OpenAI 兼容协议, 架构组件" aria-pressed="false" data-node-kind="external" data-node-sublabel="OpenAI 兼容协议" data-node-context="架构组件">
-          <title>被测模型服务 · OpenAI 兼容协议 · 架构组件</title>
-          <rect x="960" y="300" width="150" height="64" rx="6" class="c-mask"/>
-          <rect x="960" y="300" width="150" height="64" rx="6" class="c-external" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(966 306) scale(0.6875)">
-            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
-            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="1035" y="330" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">被测模型服务</text>
-        <text data-detail="context" x="1035" y="346" class="t-muted" font-size="9" text-anchor="middle">OpenAI 兼容协议</text>
-        </g>
-
-        <g id="node-reporter" data-node-id="reporter" data-node-label="Reporter" tabindex="0" role="button" aria-label="聚焦Reporter，JSON/MD/HTML/JUnit, llm-qa 本地进程" aria-pressed="false" data-node-kind="backend" data-node-sublabel="JSON/MD/HTML/JUnit" data-node-context="llm-qa 本地进程">
-          <title>Reporter · JSON/MD/HTML/JUnit · llm-qa 本地进程</title>
-          <rect x="685" y="500" width="150" height="64" rx="6" class="c-mask"/>
-          <rect x="685" y="500" width="150" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(691 506) scale(0.6875)">
+        <g id="node-suite-agent" data-node-id="suite-agent" data-node-label="Agent" tabindex="0" role="button" aria-label="聚焦Agent，④ 五类测试用例 › 执行" aria-pressed="false" data-node-kind="backend" data-node-context="④ 五类测试用例 › 执行">
+          <title>Agent · ④ 五类测试用例 › 执行</title>
+          <rect x="400" y="465" width="60" height="52" rx="6" class="c-mask"/>
+          <rect x="400" y="465" width="60" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(406 471) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="760" y="530" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Reporter</text>
-        <text data-detail="context" x="760" y="546" class="t-muted" font-size="9" text-anchor="middle">JSON/MD/HTML/JUnit</text>
+          <text data-node-label="" x="430" y="486" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Agent</text>
         </g>
 
-        <g id="node-reports" data-node-id="reports" data-node-label="reports/&lt;run_id&gt;" tabindex="0" role="button" aria-label="聚焦reports/&lt;run_id&gt;，JSON/MD/HTML/JUnit, 架构组件" aria-pressed="false" data-node-kind="database" data-node-sublabel="JSON/MD/HTML/JUnit" data-node-context="架构组件">
-          <title>reports/&lt;run_id&gt; · JSON/MD/HTML/JUnit · 架构组件</title>
-          <rect x="910" y="500" width="150" height="64" rx="6" class="c-mask"/>
-          <rect x="910" y="500" width="150" height="64" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(916 506) scale(0.6875)">
-            <ellipse cx="8" cy="4" rx="5" ry="2"/>
-            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="985" y="530" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">reports/&lt;run_id&gt;</text>
-        <text data-detail="context" x="985" y="546" class="t-muted" font-size="9" text-anchor="middle">JSON/MD/HTML/JUnit</text>
-        </g>
-
-        <g id="node-compare" data-node-id="compare" data-node-label="运行间对比" tabindex="0" role="button" aria-label="聚焦运行间对比，report compare, 架构组件" aria-pressed="false" data-node-kind="backend" data-node-sublabel="report compare" data-node-context="架构组件">
-          <title>运行间对比 · report compare · 架构组件</title>
-          <rect x="1084" y="500" width="150" height="64" rx="6" class="c-mask"/>
-          <rect x="1084" y="500" width="150" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(1090 506) scale(0.6875)">
+        <g id="node-suite-perf" data-node-id="suite-perf" data-node-label="性能压测" tabindex="0" role="button" aria-label="聚焦性能压测，④ 五类测试用例 › 执行" aria-pressed="false" data-node-kind="backend" data-node-context="④ 五类测试用例 › 执行">
+          <title>性能压测 · ④ 五类测试用例 › 执行</title>
+          <rect x="470" y="465" width="60" height="52" rx="6" class="c-mask"/>
+          <rect x="470" y="465" width="60" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(476 471) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="1159" y="530" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">运行间对比</text>
-        <text data-detail="context" x="1159" y="546" class="t-muted" font-size="9" text-anchor="middle">report compare</text>
+          <text data-node-label="" x="500" y="486" class="t-primary" font-size="10.8" font-weight="600" text-anchor="middle">性能压测</text>
         </g>
 
-        <g id="node-gate" data-node-id="gate" data-node-label="CI 门禁链" tabindex="0" role="button" aria-label="聚焦CI 门禁链，GitHub Actions, 架构组件" aria-pressed="false" data-node-kind="external" data-node-sublabel="GitHub Actions" data-node-tag="gate.py" data-node-context="架构组件">
-          <title>CI 门禁链 · GitHub Actions · 架构组件 · gate.py</title>
-          <rect x="1100" y="90" width="150" height="64" rx="6" class="c-mask"/>
-          <rect x="1100" y="90" width="150" height="64" rx="6" class="c-external" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(1106 96) scale(0.6875)">
-            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
-            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+        <g id="node-execute" data-node-id="execute" data-node-label="⑤ 跑一个用例" tabindex="0" role="button" aria-label="聚焦⑤ 跑一个用例，每用例独立上下文, 测试用例 › 执行" aria-pressed="false" data-node-kind="backend" data-node-sublabel="每用例独立上下文" data-node-context="测试用例 › 执行">
+          <title>⑤ 跑一个用例 · 每用例独立上下文 · 测试用例 › 执行</title>
+          <rect x="384" y="589" width="92" height="52" rx="6" class="c-mask"/>
+          <rect x="384" y="589" width="92" height="52" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(390 595) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="1175" y="120" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">CI 门禁链</text>
-        <text data-detail="context" x="1175" y="136" class="t-muted" font-size="9" text-anchor="middle">GitHub Actions</text>
-        <text data-detail="fine" x="1175" y="146" class="t-external" font-size="7" text-anchor="middle">gate.py</text>
+          <text data-node-label="" data-detail-anchor="" x="430" y="610" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑤ 跑一个用例</text>
+          <text data-detail="context" x="430" y="627" class="t-muted" font-size="8" text-anchor="middle">每用例独立上下文</text>
         </g>
 
-        <!-- Connection labels -->
-        <g data-detail="context" data-edge-from="dev" data-edge-to="cli" data-edge-label="llmqa run" data-edge-key="0" data-edge-id="invoke">
-          <rect x="188.4" y="312" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
-          <text x="215" y="322" class="t-backend" font-size="8" text-anchor="middle">llmqa run</text>
-        </g>
-        <g data-detail="context" data-edge-from="cli" data-edge-to="assets" data-edge-label="加载 YAML" data-edge-key="1" data-edge-id="load-assets">
-          <rect x="313.4" y="384" width="53.199999999999996" height="14" rx="3" class="c-mask"/>
-          <text x="340" y="394" class="t-muted" font-size="8" text-anchor="middle">加载 YAML</text>
-        </g>
-        <g data-detail="context" data-edge-from="cli" data-edge-to="prompt-mgmt" data-edge-label="prompts 命令" data-edge-key="2" data-edge-id="prompts-cmd">
-          <rect x="306.2" y="240" width="67.6" height="14" rx="3" class="c-mask"/>
-          <text x="340" y="250" class="t-muted" font-size="8" text-anchor="middle">prompts 命令</text>
-        </g>
-        <g data-detail="context" data-edge-from="suites" data-edge-to="engine" data-edge-label="@test 注册" data-edge-key="3" data-edge-id="register">
-          <rect x="543" y="440" width="58" height="14" rx="3" class="c-mask"/>
-          <text x="572" y="450" class="t-muted" font-size="8" text-anchor="middle">@test 注册</text>
-        </g>
-        <g data-detail="context" data-edge-from="cli" data-edge-to="engine" data-edge-label="run_sync()" data-edge-key="4" data-edge-id="run-sync">
-          <rect x="429.5" y="312" width="58" height="14" rx="3" class="c-mask"/>
-          <text x="458.5" y="322" class="t-backend" font-size="8" text-anchor="middle">run_sync()</text>
-        </g>
-        <g data-detail="context" data-edge-from="engine" data-edge-to="client" data-edge-label="取客户端" data-edge-key="5" data-edge-id="get-client">
-          <rect x="664.3" y="305" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="688.5" y="315" class="t-muted" font-size="8" text-anchor="middle">取客户端</text>
-        </g>
-        <g data-detail="context" data-edge-from="client" data-edge-to="model" data-edge-label="HTTPS" data-edge-key="6" data-edge-id="https">
-          <rect x="915.5" y="312" width="34" height="14" rx="3" class="c-mask"/>
-          <text x="932.5" y="322" class="t-muted" font-size="8" text-anchor="middle">HTTPS</text>
-        </g>
-        <g data-detail="context" data-edge-from="engine" data-edge-to="reporter" data-edge-label="Verdict / 指标" data-edge-key="7" data-edge-id="verdicts">
-          <rect x="624.9" y="415.5" width="77.2" height="14" rx="3" class="c-mask"/>
-          <text x="663.5" y="425.5" class="t-muted" font-size="8" text-anchor="middle">Verdict / 指标</text>
-        </g>
-        <g data-detail="context" data-edge-from="reporter" data-edge-to="reports" data-edge-label="写入报告" data-edge-key="8" data-edge-id="write-report">
-          <rect x="848.3" y="512" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="872.5" y="522" class="t-muted" font-size="8" text-anchor="middle">写入报告</text>
+        <g id="node-modes" data-node-id="modes" data-node-label="⑥ 两种跑法" tabindex="0" role="button" aria-label="聚焦⑥ 两种跑法，Mock 默认 · 真实需 Key, 被测模型 · 两种跑法 › 执行" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Mock 默认 · 真实需 Key" data-node-tag="两态复用" data-node-context="被测模型 · 两种跑法 › 执行">
+          <title>⑥ 两种跑法 · Mock 默认 · 真实需 Key · 被测模型 · 两种跑法 › 执行 · 两态复用</title>
+          <rect x="384" y="705" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="384" y="705" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(390 711) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="430" y="726" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑥ 两种跑法</text>
+          <text data-detail="context" x="430" y="743" class="t-muted" font-size="6.3" text-anchor="middle">Mock 默认 · 真实需 Key</text>
+        <text data-detail="fine" x="430" y="761" class="t-backend" font-size="7" text-anchor="middle">两态复用</text>
         </g>
 
-        <g data-detail="context" data-edge-from="reports" data-edge-to="gate" data-edge-label="artifacts 上传" data-edge-key="10" data-edge-id="upload">
-          <rect x="1086.9" y="568" width="77.2" height="14" rx="3" class="c-mask"/>
-          <text x="1125.5" y="578" class="t-muted" font-size="8" text-anchor="middle">artifacts 上传</text>
-        </g>
-        <g data-detail="context" data-edge-from="compare" data-edge-to="gate" data-edge-label="回归判定" data-edge-key="11" data-edge-id="regression">
-          <rect x="1142.8" y="307" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="1167" y="317" class="t-muted" font-size="8" text-anchor="middle">回归判定</text>
-        </g>
-        <g data-detail="context" data-edge-from="prompt-mgmt" data-edge-to="gate" data-edge-label="注入扫描门禁" data-edge-key="12" data-edge-id="scan">
-          <rect x="723.7" y="102" width="67.6" height="14" rx="3" class="c-mask"/>
-          <text x="757.5" y="112" class="t-muted" font-size="8" text-anchor="middle">注入扫描门禁</text>
+        <g id="node-judge" data-node-id="judge" data-node-label="⑦ 判定结果" tabindex="0" role="button" aria-label="聚焦⑦ 判定结果，PASS/FAIL/ERROR/SKIP, 测试用例 › 收尾" aria-pressed="false" data-node-kind="backend" data-node-sublabel="PASS/FAIL/ERROR/SKIP" data-node-tag="ERROR 自动重试" data-node-context="测试用例 › 收尾">
+          <title>⑦ 判定结果 · PASS/FAIL/ERROR/SKIP · 测试用例 › 收尾 · ERROR 自动重试</title>
+          <rect x="579" y="581" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="579" y="581" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(585 587) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="625" y="602" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑦ 判定结果</text>
+          <text data-detail="context" x="625" y="619" class="t-muted" font-size="7" text-anchor="middle">PASS/FAIL/ERROR/SKIP</text>
+        <text data-detail="fine" x="625" y="637" class="t-backend" font-size="7" text-anchor="middle">ERROR 自动重试</text>
         </g>
 
-        <!-- Boundary labels (foreground masks keep routes out of titles) -->
-        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="llm-qa 本地进程">
-          <rect data-graph-role="structural-frame-label-mask" x="239" y="70" width="91" height="16" rx="3" class="c-mask"/>
-          <text data-boundary-label="" x="243" y="83" class="t-cloud" font-size="9" font-weight="600">llm-qa 本地进程</text>
+        <g id="node-reportci" data-node-id="reportci" data-node-label="⑧ 报告与门禁" tabindex="0" role="button" aria-label="聚焦⑧ 报告与门禁，四格式 · CI 判定, 报告与门禁 › 收尾" aria-pressed="false" data-node-kind="backend" data-node-sublabel="四格式 · CI 判定" data-node-tag="gate.py" data-node-context="报告与门禁 › 收尾">
+          <title>⑧ 报告与门禁 · 四格式 · CI 判定 · 报告与门禁 › 收尾 · gate.py</title>
+          <rect x="579" y="829" width="92" height="68" rx="6" class="c-mask"/>
+          <rect x="579" y="829" width="92" height="68" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(585 835) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="625" y="850" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">⑧ 报告与门禁</text>
+          <text data-detail="context" x="625" y="867" class="t-muted" font-size="8" text-anchor="middle">四格式 · CI 判定</text>
+        <text data-detail="fine" x="625" y="885" class="t-backend" font-size="7" text-anchor="middle">gate.py</text>
+        </g>
+
+        <!-- Edge labels -->
+        <g data-detail="context" data-edge-from="run" data-edge-to="boot" data-edge-label="启动" data-edge-key="0" data-edge-id="e1">
+          <rect x="139" y="157" width="30" height="14" rx="3" class="c-mask"/>
+          <text x="154" y="167" class="t-backend" font-size="8" text-anchor="middle">启动</text>
+        </g>
+        <g data-detail="context" data-edge-from="boot" data-edge-to="schedule" data-edge-label="用例清单" data-edge-key="1" data-edge-id="e2">
+          <rect x="235.8" y="281" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="260" y="291" class="t-backend" font-size="8" text-anchor="middle">用例清单</text>
+        </g>
+
+
+
+
+
+
+
+
+
+
+
+
+        <g data-detail="context" data-edge-from="judge" data-edge-to="reportci" data-edge-label="汇总" data-edge-key="14" data-edge-id="e15">
+          <rect x="610" y="764" width="30" height="14" rx="3" class="c-mask"/>
+          <text x="625" y="774" class="t-backend" font-size="8" text-anchor="middle">汇总</text>
         </g>
 
         <!-- Legend -->
         <g data-legend="" data-legend-bridge="">
-          <text x="40" y="616" class="t-primary" font-size="12" font-weight="650">图例</text>
-          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="前端" data-legend-x="40" data-legend-baseline="636" data-legend-width="63">
-            <rect x="40" y="627" width="16" height="10" rx="2.5" class="c-frontend" stroke-width="1"/>
-            <text x="62" y="636" class="t-muted" font-size="10" font-weight="500">前端</text>
+          <text x="20" y="924" class="t-primary" font-size="12" font-weight="650">图例</text>
+          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="用户界面" data-legend-x="20" data-legend-baseline="944" data-legend-width="78">
+            <rect x="20" y="936" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+            <text x="42" y="944" class="t-muted" font-size="7.5" font-weight="500">用户界面</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="后端" data-legend-x="125" data-legend-baseline="636" data-legend-width="63">
-            <rect x="125" y="627" width="16" height="10" rx="2.5" class="c-backend" stroke-width="1"/>
-            <text x="147" y="636" class="t-muted" font-size="10" font-weight="500">后端</text>
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Agent 逻辑" data-legend-x="105" data-legend-baseline="944" data-legend-width="87">
+            <rect x="105" y="936" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+            <text x="127" y="944" class="t-muted" font-size="7.5" font-weight="500">Agent 逻辑</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="数据库" data-legend-x="210" data-legend-baseline="636" data-legend-width="73">
-            <rect x="210" y="627" width="16" height="10" rx="2.5" class="c-database" stroke-width="1"/>
-            <text x="232" y="636" class="t-muted" font-size="10" font-weight="500">数据库</text>
-          </g>
-          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="外部系统" data-legend-x="305" data-legend-baseline="636" data-legend-width="83">
-            <rect x="305" y="627" width="16" height="10" rx="2.5" class="c-external" stroke-width="1"/>
-            <text x="327" y="636" class="t-muted" font-size="10" font-weight="500">外部系统</text>
+          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="外部系统" data-legend-x="199" data-legend-baseline="944" data-legend-width="78">
+            <rect x="199" y="936" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+            <text x="221" y="944" class="t-muted" font-size="7.5" font-weight="500">外部系统</text>
           </g>
         </g>
       </svg>
@@ -5451,39 +5444,35 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>这是什么</h3>
+          <h3>三个入门事实</h3>
         </div>
         <ul>
-          <li>&bull; 一条命令:llmqa run,默认 Mock 离线跑,零配置</li>
-          <li>&bull; 命令面:run·prompts·report·demo</li>
-          <li>&bull; 配了 Key,同一用例变真实验收</li>
+          <li>&bull; 一条命令:llmqa run,零配置,默认 Mock 离线跑</li>
+          <li>&bull; 五类测试并行跑:LLM 评测 · RAG 专项 · Agent · 安全红队 · 性能压测</li>
+          <li>&bull; 报告自动生成:reports/&lt;run_id&gt;/ 四格式 + JUnit</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>五类测试各测什么</h3>
+          <h3>判定四结果</h3>
         </div>
         <ul>
-          <li>&bull; LLM 评测:格式·指令·事实·幻觉</li>
-          <li>&bull; RAG:检索·分块·忠实·引用</li>
-          <li>&bull; Agent:工具·规划·循环·预算</li>
-          <li>&bull; 安全:注入·越狱·PII·外泄</li>
-          <li>&bull; 性能:延迟·吞吐·成本·限流</li>
+          <li>&bull; PASS 通过 · FAIL 被测缺陷 · ERROR 基础故障(自动重试) · SKIP 环境不满足</li>
+          <li>&bull; 同一批用例,Mock 与真实模型两态复用</li>
+          <li>&bull; 严重级五档,CI 按 HIGH+ 门禁判定 job 成败</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot rose"></div>
-          <h3>报告 · 门禁 · 扩展</h3>
+          <h3>遇到问题看哪里</h3>
         </div>
         <ul>
-          <li>&bull; 报告:JSON/MD/HTML/JUnit,CI 按严重级门禁</li>
-          <li>&bull; CI 四层:静态扫描→冒烟→全量→夜间</li>
-          <li>&bull; report compare 一眼看出回归</li>
-          <li>&bull; 扩展:新 Provider/套件/数据集 + examples/docs</li>
+          <li>&bull; FAIL → 被测模型/应用的问题;ERROR → 超时或框架问题</li>
+          <li>&bull; llmqa report compare 对比上次运行,一眼看出回归</li>
         </ul>
       </div>
     </div>
