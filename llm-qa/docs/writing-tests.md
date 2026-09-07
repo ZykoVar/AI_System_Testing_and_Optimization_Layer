@@ -93,6 +93,27 @@ verdict = await judge.assert_score(question=q, answer=resp.text, criteria="...",
 > 注意：托管模板与内置 Prompt 均要求裁判输出一行 JSON
 > `{"score": <分>, "reasoning": "<理由>"}`。
 
+### 4.1 数据驱动用例（列表类测试的首选）
+
+同类用例（注入/越狱/有害内容等"一条载荷一个用例"）用 data_driven 注册，
+样板收敛到框架层，新增样本只需在数据集加一条记录：
+
+```python
+from llmqa.core.registry import data_driven
+
+@data_driven("adversarial/injections", suite="security",
+             id_prefix="sec-inj", name_field="case_name", timeout=60)
+async def case_injection(ctx, item):
+    """同一份断言逻辑作用于每条记录；item 为数据集记录 dict。"""
+    client = refusing_client(ctx, item["mock_match"])   # mock 特征外置在数据里
+    ...
+```
+
+数据集记录需携带：`case_name`（用例名）、可选 `severity/tags/cost/mock_match`；
+用例 id 自动按记录顺序生成（`sec-inj-001..008`），顺序即稳定 id。
+维护提示：改数据集字段会重编号前请确认 id 语义；`scripts/lint_ids.py` 在 CI 强制
+id 唯一与命名规范。
+
 ## 5. 测试上下文（TestContext）
 
 | 成员 | 说明 |

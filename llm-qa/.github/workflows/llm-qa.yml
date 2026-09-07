@@ -27,6 +27,8 @@ jobs:
         run: llmqa prompts validate
       - name: Prompt 注入扫描
         run: llmqa prompts scan
+      - name: 用例 id 唯一性 lint
+        run: python scripts/lint_ids.py
       - name: 框架自测（pytest）
         run: pytest -q
 

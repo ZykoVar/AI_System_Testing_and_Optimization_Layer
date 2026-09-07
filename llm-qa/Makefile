@@ -1,7 +1,7 @@
 # llm-qa 便捷入口（Linux/macOS/WSL；Windows 用 scripts/*.ps1）
 PY ?= python
 
-.PHONY: install demo list smoke all-mock prompts-scan test gate help
+.PHONY: install demo list smoke all-mock prompts-scan lint test gate help
 
 install:            ## 安装（含 dev 依赖）
 	$(PY) -m pip install -e ".[dev]"
@@ -21,6 +21,9 @@ all-mock:           ## 全量 Mock 回归
 prompts-scan:       ## Prompt 契约校验 + 注入扫描（L0 门禁）
 	llmqa prompts validate
 	llmqa prompts scan
+
+lint:               ## 用例 id 唯一性 lint（L0 门禁）
+	$(PY) scripts/lint_ids.py
 
 test:               ## 框架自测（pytest）
 	$(PY) -m pytest -q

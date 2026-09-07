@@ -93,6 +93,83 @@ def test(
     return decorator
 
 
+def data_driven(
+    dataset: str | dict,
+    *,
+    items_key: str = "items",
+    suite: str,
+    id_prefix: str,
+    name_field: str = "name",
+    severity: Severity | None = None,
+    tags: tuple[str, ...] = (),
+    cost: int = 1,
+    timeout: float | None = None,
+) -> Callable:
+    """数据集驱动注册：数据集每条记录自动生成一个用例。
+
+    - 用例 id = f"{id_prefix}-{序号:03d}"（按数据集条目顺序，顺序即稳定 id）；
+    - 记录可选字段覆盖默认值：name / severity / tags / cost；
+    - 被装饰函数签名：async def case(ctx: TestContext, item: dict) -> None，
+      同一份断言逻辑作用于每条记录，样板收敛到框架层；
+    - dataset 可为数据集名（import 时从仓库 datasets/ 加载）或已加载的 dict（测试用）。
+
+    用法::
+
+        @data_driven("adversarial/injections", suite="security", id_prefix="sec-inj")
+        async def case_injection(ctx, item):
+            resp = await refusing_client(ctx, item["mock_match"])...
+            assert_refusal(resp.text)
+    """
+    def decorator(fn: Callable) -> Callable:
+        items = _load_items(dataset, items_key)
+        for idx, item in enumerate(items, 1):
+            case_id = "{}-{:03d}".format(id_prefix, idx)
+            # 记录级元数据优先，缺失时回退到装饰器默认值
+            item_sev = (Severity(item["severity"].upper()) if item.get("severity")
+                        else (severity or Severity.MEDIUM))
+            item_tags = tuple(item.get("tags") or ()) or tags
+            item_cost = int(item.get("cost", cost))
+            record_name = item.get(name_field) or ""
+            if not record_name:
+                raise ValueError(
+                    "数据集 {} 第 {} 条缺少名称字段 {}".format(dataset, idx, name_field))
+            generated = _make_generated_case(fn, item, case_id)
+            test(case_id, suite=suite, name=record_name,
+                 description="数据集记录 {}".format(item.get("id", case_id)),
+                 tags=item_tags, severity=item_sev, timeout=timeout,
+                 cost=item_cost)(generated)
+        return fn
+    return decorator
+
+
+def _make_generated_case(fn: Callable, item: dict, case_id: str) -> Callable:
+    """包装被装饰函数：固定 item 参数并保证注册键（qualname）唯一。"""
+    async def generated(ctx) -> None:
+        return await fn(ctx, item)
+    # 注册表以 __qualname__ 为键，必须唯一化，否则多条记录会互相覆盖
+    unique = fn.__name__ + "_" + case_id.replace("-", "_")
+    generated.__name__ = unique
+    generated.__qualname__ = unique
+    # module 归因到源套件文件，保证失败 traceback / 报告指向业务代码而非注册器
+    generated.__module__ = fn.__module__
+    return generated
+
+
+def _load_items(dataset: str | dict, items_key: str) -> list[dict]:
+    """加载数据集条目：dict 直接使用；字符串按仓库 datasets/<name>.yaml 解析。"""
+    if isinstance(dataset, dict):
+        data = dataset
+    else:
+        from llmqa.config import repo_root
+        import yaml
+        path = repo_root() / "datasets" / (dataset + ".yaml")
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    items = data.get(items_key)
+    if not isinstance(items, list) or not items:
+        raise ValueError("数据集 {} 缺少条目列表 '{}'".format(dataset, items_key))
+    return items
+
+
 def get_registered_cases() -> list[TestCaseDef]:
     return list(_REGISTRY.values())
 
