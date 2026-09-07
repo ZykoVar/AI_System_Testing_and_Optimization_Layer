@@ -9,6 +9,11 @@ on:
     - cron: "0 2 * * *"      # 每夜 02:00 UTC 跑真实模型层
   workflow_dispatch:
 
+# 确定性：固定时区，报告时间戳与 provenance 可跨环境对齐
+env:
+  TZ: UTC
+  PYTHONIOENCODING: utf-8
+
 jobs:
   # L0：静态门禁
   static:

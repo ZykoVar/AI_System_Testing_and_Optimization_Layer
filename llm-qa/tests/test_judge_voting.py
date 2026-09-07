@@ -57,6 +57,19 @@ def test_multi_pass_voting_median():
     assert verdict.reasoning == "适中"
 
 
+def test_assert_score_failure_carries_evidence():
+    # 低分失败时，裁判理由与投票明细作为证据随断言传播
+    from llmqa.assertors import AssertionFailed
+    client = MockClient(rules=[MockRule(
+        match="评分标准", reply='{"score": 3, "reasoning": "答案错误"}')])
+    with pytest.raises(AssertionFailed) as exc_info:
+        run(Judge(client).assert_score(
+            question="q", answer="a", criteria="c", min_score=7.0))
+    evidence = "\n".join(exc_info.value.evidence)
+    assert "答案错误" in evidence
+    assert exc_info.value.metrics["judge_score"] == 3
+
+
 def test_assert_score_with_voting():
     client = MockClient(rules=[MockRule(
         match="评分标准", reply='{"score": 9, "reasoning": "好"}')])

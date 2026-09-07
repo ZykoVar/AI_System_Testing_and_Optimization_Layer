@@ -135,7 +135,11 @@ def run() -> int:
     runner = TestRunner(ctx_factory, concurrency=4, retries_on_error=0,
                         default_timeout=30, progress=reporter.on_case_done)
     report = runner.run_sync(cases, provider_name=settings.default_provider)
+    # 演示运行同样挂溯源，保持"任何运行都可追溯"的不变式
+    from llmqa.core.provenance import attach_provenance
+    attach_provenance(report, root, prompts, datasets)
     files = reporter.finalize(report)
+    pool.close_sync()
     print()
     print(report.summary_text())
     print("报告: " + ", ".join(f"{k} → {v}" for k, v in files.items()))

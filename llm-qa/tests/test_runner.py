@@ -80,6 +80,25 @@ def test_plain_assert_is_fail_not_error():
     clear_registry()
 
 
+def test_retries_used_recorded():
+    # ERROR 重试应写入 outcome.retries_used，flaky 可见
+    clear_registry()
+    attempts = []
+
+    @register_test(id="unit-006b", suite="unit", name="重试用例", retries=2)
+    async def case_flaky(ctx):
+        attempts.append(1)
+        raise RuntimeError("第一次失败")
+
+    runner = TestRunner(make_ctx, retries_on_error=2)
+    report = asyncio.run(runner.run_all(get_registered_cases()))
+    outcome = report.outcomes[0]
+    assert outcome.verdict == Verdict.ERROR
+    assert outcome.retries_used == 2
+    assert len(attempts) == 3          # 首次 + 两次重试
+    clear_registry()
+
+
 def test_timeout_is_error():
     clear_registry()
 

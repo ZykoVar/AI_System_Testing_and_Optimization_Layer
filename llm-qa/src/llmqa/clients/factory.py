@@ -70,3 +70,26 @@ class ClientPool:
         for rule in rules or []:
             client.add_rule(rule)
         return client
+
+    async def close(self) -> None:
+        """关闭池内全部真实 Provider 连接的底层客户端（httpx 连接池等）。
+
+        运行生命周期结束时应调用：连接池按"每次运行"而非"每个进程"释放，
+        避免长驻进程（CI 常驻 runner、服务化场景）泄漏连接。
+        """
+        for client in self._cache.values():
+            closer = getattr(client, "aclose", None)
+            if closer is not None:
+                await closer()
+        self._cache.clear()
+
+    def close_sync(self) -> None:
+        """同步关闭（无运行中事件循环时使用，CLI 收尾路径）。"""
+        import asyncio
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(self.close())
+            return
+        # 已有事件循环时无法 asyncio.run，仅清缓存（适配器由宿主循环负责）
+        self._cache.clear()

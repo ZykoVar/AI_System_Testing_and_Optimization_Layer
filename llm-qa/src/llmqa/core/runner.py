@@ -10,6 +10,7 @@ from collections.abc import Callable
 from pydantic import BaseModel, Field
 
 from llmqa.assertors.base import AssertionFailed
+from llmqa.core.provenance import RunProvenance
 from llmqa.core.models import Severity, TestContext, TestOutcome, Verdict
 from llmqa.core.registry import SkipTest, TestCaseDef
 
@@ -23,6 +24,8 @@ class TestReport(BaseModel):
     outcomes: list[TestOutcome] = Field(default_factory=list)
     max_cost: int | None = None   # --max-cost 预算上限（None 表示不限）
     used_cost: int = 0            # 实际消耗的成本单位（按用例声明 cost 累计）
+    schema_version: int = 1       # 报告结构版本：schema 演进时用于识别旧报告
+    provenance: RunProvenance | None = None  # 运行溯源（git/Prompt/数据集版本），见 core.provenance
 
     @property
     def counts(self) -> dict[str, int]:
@@ -139,6 +142,7 @@ class TestRunner:
             severity=case.severity, verdict=verdict,
             duration_ms=(time.perf_counter() - start) * 1000,
             message=message, metrics=metrics, traceback=tb,
+            retries_used=attempt,   # flaky 可见性：0=一次通过，N=重试 N 次后判定
         )
         self.progress(outcome)
         return outcome

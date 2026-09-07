@@ -18,6 +18,7 @@ class DatasetManager:
 
     def __init__(self, root: str | Path):
         self.root = Path(root)
+        self._used: set[str] = set()   # 运行溯源：本次实际加载过的数据集名
 
     def path(self, name: str) -> Path:
         """按固定扩展名顺序把 name 解析到实际文件，找不到即抛 DatasetNotFound。"""
@@ -38,8 +39,13 @@ class DatasetManager:
                 out.append(rel[: -len(p.suffix)])
         return out
 
+    def used_datasets(self) -> list[str]:
+        """本次运行实际加载过的数据集名（按名排序，运行溯源用）。"""
+        return sorted(self._used)
+
     def load(self, name: str) -> Any:
         """按扩展名解析并返回数据：CSV → 字典列表，YAML/JSON → 反序列化对象。"""
+        self._used.add(name)   # 记录使用（运行溯源用）
         path = self.path(name)
         if path.suffix == ".csv":
             # utf-8-sig 兼容 Excel 导出的带 BOM 头；newline="" 交给 csv 模块统一处理换行。

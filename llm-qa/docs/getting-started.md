@@ -56,6 +56,11 @@ llmqa run --provider openai --max-cost 50
 llmqa report list
 llmqa report compare --last
 llmqa report compare <运行ID-A> <运行ID-B>
+
+# 显式回归基线（发布流程）
+llmqa report baseline-set <run_id>   # 全绿运行登记为基线
+llmqa report baseline-show
+llmqa report compare --baseline      # 与基线对比，退出码 1 = 有回归
 ```
 
 ## 4. 接入真实模型

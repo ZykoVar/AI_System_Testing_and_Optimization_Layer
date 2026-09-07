@@ -106,18 +106,22 @@ def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,
             return TestContext(run_id=tag + "-" + uuid.uuid4().hex[:6],
                                settings=settings, providers=pool,
                                prompts=pm, datasets=datasets)
-        return ctx_factory
+        return ctx_factory, pm
 
     reporter = Reporter(root / settings.report_dir, no_color=True) if progress else None
     on_done = reporter.on_case_done if reporter else None
 
     def one_run(pin_version: int, tag: str):
-        runner = TestRunner(make_ctx_factory(pin_version, tag),
+        ctx_factory, pm = make_ctx_factory(pin_version, tag)
+        runner = TestRunner(ctx_factory,
                             concurrency=concurrency or settings.concurrency,
                             retries_on_error=settings.retries_on_error,
                             default_timeout=settings.timeout_per_test,
                             progress=on_done)
         report = runner.run_sync(cases, provider_name=provider_name)
+        # 挂运行溯源（git/Prompt/数据集版本），A/B 报告才能对齐到具体代码与数据
+        from llmqa.core.provenance import attach_provenance
+        attach_provenance(report, root, pm, datasets)
         if reporter is not None:
             reporter.finalize(report)   # 每次运行都留标准报告，可审计
         return report

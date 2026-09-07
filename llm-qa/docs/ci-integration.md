@@ -54,6 +54,24 @@ scripts/ci_gate.ps1        # 解析报告 JSON，按严重级判定门禁
 补充：运行间回归门禁可用 `llmqa report compare --last`（退出码 1 = 存在回归），
 与严重级门禁串联：任一拦截 → 发布受阻。
 
+### 4.1 回归基线（推荐发布流程）
+
+```powershell
+# 发布窗口全绿后，把该次运行登记为基线
+llmqa report baseline-set <run_id>
+# 后续每次运行与基线对比（退出码 1 = 存在回归）
+llmqa report compare --baseline
+```
+
+基线文件存于 `reports/.baseline.json`，可随仓库提交实现"团队共享基线"。
+
+### 4.2 运行溯源（provenance）
+
+每次运行的 `report.json` 都携带溯源块：git commit（及工作区是否脏）、
+Python 版本、时区、本次实际使用的 Prompt 版本清单（prompts_used）与
+数据集清单（datasets_used）。compare 输出会展示两次运行的 commit 差异——
+回答"这次回归发生在哪次代码变更上"。
+
 ## 5. 与其他系统集成
 
 - **JUnit 消费者**（Jenkins/GitLab/Azure DevOps）：直接归档 `junit.xml`；

@@ -53,6 +53,7 @@ class TestOutcome(BaseModel):
     metrics: dict[str, Any] = Field(default_factory=dict)   # 数值指标（延迟、评分、命中率等）
     evidence: list[str] = Field(default_factory=list)       # 证据文本/引用
     traceback: str | None = None  # 仅在 ERROR（基础设施异常）时填充，便于报告定位
+    retries_used: int = 0  # 本次判定前因 ERROR 实际重试的次数（0=一次通过），用于 flaky 可见性
 
 
 class TestContext(BaseModel):

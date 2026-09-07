@@ -105,9 +105,18 @@ class Judge:
                                    criteria=criteria, passes=passes)
         threshold = min_score if min_score is not None else 7.0  # 满分 10 时的默认及格线
         if verdict.score < threshold:
+            # 证据随失败一起传播：裁判理由、各次投票分与一致度写入 evidence，
+            # 排障时无需重跑即可看到"为什么低分"
+            evidence = ["裁判理由: " + verdict.reasoning]
+            if verdict.passes > 1:
+                evidence.append("各次投票分: " + str(verdict.scores))
+                evidence.append("一致度: " + str(verdict.agreement))
             raise AssertionFailed(
                 message or f"裁判评分 {verdict.score:.1f} 低于阈值 {threshold:.1f}：{verdict.reasoning}",
-                metrics={"judge_score": verdict.score})
+                metrics={"judge_score": verdict.score,
+                         "judge_passes": verdict.passes,
+                         "judge_agreement": verdict.agreement},
+                evidence=evidence)
         return verdict
 
     def _parse(self, text: str) -> JudgeVerdict:

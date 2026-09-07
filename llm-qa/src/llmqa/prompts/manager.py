@@ -95,6 +95,7 @@ class PromptManager:
         self.root = Path(root)
         self._templates: dict[str, dict[int, PromptTemplate]] = {}
         self._pins: dict[str, int] = {}
+        self._used: dict[str, int] = {}   # 运行溯源：本次实际渲染过的 (prompt_id → 解析版本)
 
     # ---------- 全局版本钉住（A/B 测试用） ----------
     def pin(self, prompt_id: str, version: int) -> None:
@@ -107,6 +108,11 @@ class PromptManager:
             self._pins.clear()
         else:
             self._pins.pop(prompt_id, None)
+
+    def used_prompts(self) -> list[dict]:
+        """本次运行实际渲染过的 Prompt 及其解析版本（按 id 排序，运行溯源用）。"""
+        return [{"id": pid, "version": ver}
+                for pid, ver in sorted(self._used.items())]
 
     # ---------- 加载与查询 ----------
     def load(self) -> PromptManager:
@@ -167,6 +173,7 @@ class PromptManager:
         if version is None:
             version = self._pins.get(prompt_id)
         template = self.get(prompt_id, version)
+        self._used[template.id] = template.version   # 记录实际解析版本（运行溯源用）
         variables = dict(variables or {})   # 拷贝一份，避免渲染过程污染调用方的字典
         # 1. 必填校验
         missing = [k for k, spec in template.variables.items()

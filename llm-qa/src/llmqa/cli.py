@@ -92,7 +92,13 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p_cmp.add_argument("run_a", nargs="?", default=None, help="基线运行 ID（reports/ 下目录名）")
     p_cmp.add_argument("run_b", nargs="?", default=None, help="当前运行 ID")
     p_cmp.add_argument("--last", action="store_true", help="自动取最近两次运行对比")
+    p_cmp.add_argument("--baseline", action="store_true",
+                       help="A 侧取已登记的基线（llmqa report baseline-set 设置）")
     p_cmp.add_argument("--report-dir", default=None, help="报告根目录（默认 settings.report_dir）")
+    p_bset = rep_sub.add_parser("baseline-set", help="把某次运行登记为回归基线")
+    p_bset.add_argument("run_id", help="运行 ID（reports/ 下目录名）")
+    p_bset.add_argument("--report-dir", default=None)
+    rep_sub.add_parser("baseline-show", help="查看当前登记的基线")
 
     sub.add_parser("demo", help="运行内置演示套件（mock Provider）")
     return parser
@@ -154,7 +160,11 @@ def _run(args: argparse.Namespace) -> int:
         max_cost=args.max_cost,
     )
     report = runner.run_sync(cases, provider_name=provider_name)
+    # 运行溯源：git commit / Prompt 版本 / 数据集清单，随报告落盘
+    from llmqa.core.provenance import attach_provenance
+    attach_provenance(report, root, prompts, datasets)
     files = reporter.finalize(report)
+    pool.close_sync()   # 运行结束释放真实 Provider 连接池（按 run 生命周期而非进程）
     print()
     print(report.summary_text())
     print("报告: " + ", ".join(f"{k} → {v}" for k, v in files.items()))
@@ -249,9 +259,31 @@ def _report(args: argparse.Namespace) -> int:
 
     root = _resolve_root(args.config)
     settings = Settings.load(args.config or (root / "config"))
-    # --report-dir 只在 compare 子命令定义，list 无此参数，故用 getattr 兜底
+    # --report-dir 只在 compare/baseline-set 子命令定义，list 等无此参数，故用 getattr 兜底
     report_dir = Path(getattr(args, "report_dir", None) or "") if getattr(
         args, "report_dir", None) else (root / settings.report_dir)
+
+    # ---- baseline-set/show：显式回归基线管理 ----
+    baseline_file = report_dir / ".baseline.json"
+    if args.report_action in ("baseline-set", "baseline-show"):
+        if args.report_action == "baseline-show":
+            if not baseline_file.exists():
+                print("尚未登记基线（用 llmqa report baseline-set <run_id> 设置）")
+                return 2
+            data = json.loads(baseline_file.read_text(encoding="utf-8"))
+            print("当前基线: {}".format(data.get("run_id")))
+            print("登记时间: {}".format(data.get("set_at", "?")))
+            return 0
+        path = report_dir / args.run_id / "report.json"
+        if not path.exists():
+            print("报告不存在: " + str(path))
+            return 2
+        baseline_file.write_text(json.dumps({
+            "run_id": args.run_id,
+            "set_at": dt.datetime.now().isoformat(timespec="seconds"),
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("已登记基线: {}".format(args.run_id))
+        return 0
 
     # ---- list：按时间倒序列出全部运行 ----
     if args.report_action == "list":
@@ -274,10 +306,26 @@ def _report(args: argparse.Namespace) -> int:
             print("历史运行不足 2 次，无法对比")
             return 2
         run_a, run_b = runs[-2].parent.name, runs[-1].parent.name
+    elif args.baseline:
+        # A 侧取登记的显式基线，B 侧取指定运行或最近一次
+        if not baseline_file.exists():
+            print("尚未登记基线（llmqa report baseline-set <run_id>）")
+            return 2
+        run_a = json.loads(baseline_file.read_text(encoding="utf-8"))["run_id"]
+        if args.run_b:
+            run_b = args.run_b
+        else:
+            runs = sorted((d for d in report_dir.glob("*/report.json")
+                           if d.parent.name not in ("compare", run_a)),
+                          key=lambda p: p.stat().st_mtime)
+            if not runs:
+                print("除基线外没有其他运行可对比")
+                return 2
+            run_b = runs[-1].parent.name
     elif args.run_a and args.run_b:
         run_a, run_b = args.run_a, args.run_b
     else:
-        print("用法: llmqa report compare <基线ID> <当前ID> | --last")
+        print("用法: llmqa report compare <基线ID> <当前ID> | --last | --baseline [当前ID]")
         return 2
 
     def load(run_id: str) -> dict:
@@ -288,6 +336,11 @@ def _report(args: argparse.Namespace) -> int:
         return json.loads(path.read_text(encoding="utf-8"))
 
     data_a, data_b = load(run_a), load(run_b)
+    # 溯源对齐提示：commit 不同意味着代码基线已变，回归需要结合 commit 判断
+    prov_a, prov_b = data_a.get("provenance"), data_b.get("provenance")
+    if prov_a and prov_b and prov_a.get("git_commit") != prov_b.get("git_commit"):
+        print("代码基线: A={} B={}".format(
+            (prov_a.get("git_commit") or "?")[:8], (prov_b.get("git_commit") or "?")[:8]))
     # 预算差异提示：max_cost 不同的运行对比会产生大量"预算跳过"噪声
     if data_a.get("max_cost") != data_b.get("max_cost"):
         print("注意: 两次运行的 max_cost 不同（{} vs {}），预算跳过可能被计为回归噪声".format(
