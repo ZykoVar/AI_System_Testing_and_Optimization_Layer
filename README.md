@@ -4,16 +4,39 @@ LLM/Agent 学习与工程实践工作区。
 
 ## 项目
 
-- [llm-qa](./llm-qa) —— 企业级 LLM/Agent 质量保障测试框架（Prompt 管理 / LLM 质量 / RAG 专项 / Agent / 安全红队 / 性能测试）
+### llm-qa —— 企业级 LLM/Agent 质量保障与回归平台
 
-## llm-qa 快速开始
+```text
+llm_learn
+└── llm-qa
+    ├── Prompt Management        版本化模板库、渲染校验、diff、发布前注入扫描、A/B 测试
+    ├── LLM Evaluation           格式合规、指令遵循、事实准确性（Golden QA + Judge）、幻觉/一致性
+    ├── RAG Evaluation           检索质量（recall/hit/MRR/precision）、分块、忠实性、引用、端到端
+    ├── Agent Evaluation         工具选择、参数 Schema、多步规划、会话记忆、循环与预算护栏
+    ├── Security Testing         注入/越狱/提示词窃取/PII 金丝雀/有害内容/数据外泄（41 例红队）
+    ├── Performance Testing      延迟分位、TTFT、吞吐、并发扩展、成本、限流韧性
+    ├── Regression Testing       命名基线（production/security/...）、compare 判定引擎、退出码门禁
+    ├── Baseline Management      基线即测试资产：commit/哈希/创建人随基线存档，团队共享
+    ├── Metric Policy            指标漂移策略（方向+容差）：judge ±0.3、延迟 ±20% 等
+    ├── Provenance / 可重建      每次运行记录 commit/内容哈希/模型/用例指纹，实验可重建
+    └── CI Quality Gate          四层门禁（静态→冒烟→全量 mock→真实模型）+ 严重级与回归双门禁
+```
+
+**136 个内置用例 · 84 个框架自测 · 双态运行（mock 离线 / 真实模型一键切换）**
+
+## 快速开始
 
 ```powershell
 cd llm-qa
 pip install -e ".[dev]"
-llmqa demo          # Mock 演示（无需 API Key）
-llmqa run --list    # 136 个内置用例
-llmqa run           # 全量回归（mock 态）
+llmqa demo                      # Mock 演示（无需 API Key）
+llmqa run --list                # 136 个内置用例
+llmqa run                       # 全量回归（mock 态）
+llmqa report baseline-set <run_id> --name production   # 登记基线
+llmqa report compare --baseline --baseline-name production  # 回归对比
 ```
 
-详见 [llm-qa/README.md](./llm-qa/README.md) 与 [llm-qa/docs/](llm-qa/docs/)。
+## 文档
+
+- 入口：[llm-qa/README.md](./llm-qa/README.md)
+- 专题：[llm-qa/docs/](./llm-qa/docs/)（架构 / 快速上手 / 写用例 / 回归测试 / 运行溯源 / CI 等 12 篇）

@@ -89,23 +89,21 @@ llm-qa/
 │   └── cli.py              # llmqa 命令行
 ├── tests/                  # 框架自身单元测试（pytest）
 ├── examples/               # 自定义套件示例
-├── scripts/                # PowerShell 便捷脚本（对应 Makefile 目标）
-├── docs/                   # 完整中文文档
+├── scripts/                # 门禁与工具脚本：gate.py（严重级门禁）、lint_ids.py、
+│                           # gen_catalog.py、ast_diff.py + PowerShell 便捷脚本
+├── docs/                   # 完整中文文档（含回归测试与运行溯源专题）
 └── .github/workflows/      # CI 集成（分级门禁）
 ```
 
 ## 文档导航
 
-- [架构设计](docs/architecture.md)
-- [快速上手](docs/getting-started.md)
-- [Prompt 管理](docs/prompt-management.md)
-- [编写测试用例](docs/writing-tests.md)
-- [RAG 专项测试](docs/rag-testing.md)
-- [Agent 测试](docs/agent-testing.md)
-- [安全红队测试](docs/security-testing.md)
-- [性能测试](docs/performance-testing.md)
-- [CI 集成与门禁](docs/ci-integration.md)
-- [测试目录](docs/test-catalog.md)
+**基础**：[架构设计](docs/architecture.md) · [快速上手](docs/getting-started.md) · [编写测试用例](docs/writing-tests.md) · [Prompt 管理](docs/prompt-management.md)
+
+**测试域**：[RAG 专项](docs/rag-testing.md) · [Agent](docs/agent-testing.md) · [安全红队](docs/security-testing.md) · [性能](docs/performance-testing.md)
+
+**回归平台**：[回归测试](docs/regression-testing.md)（命名基线 / compare 判定引擎 / 指标策略） · [运行溯源](docs/provenance.md)（provenance / 内容哈希 / 实验可重建） · [CI 集成与门禁](docs/ci-integration.md)
+
+**目录**：[测试目录](docs/test-catalog.md)
 
 ## 设计原则
 
