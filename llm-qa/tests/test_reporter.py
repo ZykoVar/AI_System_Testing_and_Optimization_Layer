@@ -57,3 +57,18 @@ def test_json_report_metrics(tmp_path):
     data = json.loads(files["json"].read_text(encoding="utf-8"))
     assert data["counts"]["PASS"] == 1
     assert data["outcomes"][1]["severity"] == "HIGH"
+
+
+def test_json_report_carries_evidence(tmp_path):
+    # evidence 端到端：TestOutcome → report.json 不得丢失
+    from llmqa.core.reporter import Reporter
+    from llmqa.core import TestReport
+    outcome = TestOutcome(case_id="e-1", name="证据", suite="unit",
+                          severity=Severity.HIGH, verdict=Verdict.FAIL,
+                          message="低分", metrics={"judge_score": 3.0},
+                          evidence=["裁判理由: 答案错误"])
+    report = TestReport(run_id="r", provider="mock", started_at="t",
+                        outcomes=[outcome])
+    files = Reporter(tmp_path, no_color=True).finalize(report)
+    data = json.loads(files["json"].read_text(encoding="utf-8"))
+    assert data["outcomes"][0]["evidence"] == ["裁判理由: 答案错误"]

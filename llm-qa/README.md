@@ -8,6 +8,8 @@
 - 离线可跑：内置确定性 Mock Provider 与脚本化规则，CI 冒烟零成本、零密钥
 - 企业级工程：版本化 Prompt 库、LLM-as-Judge、多格式报告（JSON/Markdown/HTML/JUnit）、失败分级与门禁退出码
 - 安全第一：内置提示注入/越狱/金丝雀泄露/数据外泄红队用例与 Prompt 发布前扫描
+- **可重建实验**：每次运行携带完整溯源（git commit / Prompt 版本+内容哈希 / 数据集指纹 / 模型 / 用例源码指纹），任何结果都可追溯到"用什么代码、什么数据、什么 Prompt 跑出来的"
+- **回归平台**：命名基线（production/security/...）、指标漂移判定策略（方向+容差）、重试分桶与 SKIP 语义分类——compare 是评价引擎而非字面 diff
 
 ## 功能矩阵
 
@@ -19,6 +21,7 @@
 | Agent | 工具选择、参数 Schema、多步规划、会话记忆、循环检测、预算护栏、工具白名单 |
 | 安全红队 | 直接/间接注入、越狱、提示词窃取、PII 金丝雀、有害内容拒答与防误拒、数据外泄、混淆绕过 |
 | 性能 | 延迟分位（P50-P99）、TTFT、吞吐、并发扩展、成本与 token 效率、长上下文、限流行为 |
+| 回归平台 | 运行溯源（commit/内容哈希）、命名基线、report compare（指标策略+SKIP 语义）、严重级门禁 |
 
 ## 快速开始
 
@@ -39,9 +42,15 @@ llmqa run --suite security
 # 5. 接入真实模型（OpenAI 兼容协议）
 $env:OPENAI_API_KEY = "sk-..."
 llmqa run --provider openai --suite llm --tag smoke
+
+# 6. 回归基线（发布流程：全绿运行登记为基线，之后每次对比）
+llmqa report baseline-set <run_id> --name production
+llmqa report compare --baseline --baseline-name production
 ```
 
-运行后会生成四格式报告：`reports/<run_id>/report.{json,md,html}` 与 `junit.xml`。
+运行后会生成四格式报告：`reports/<run_id>/report.{json,md,html}` 与 `junit.xml`；
+每份 `report.json` 都携带溯源块（git commit、Prompt 版本+内容哈希、
+数据集指纹、模型、用例源码指纹）。
 
 ## 架构总览
 

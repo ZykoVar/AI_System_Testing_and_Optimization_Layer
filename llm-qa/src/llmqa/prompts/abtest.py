@@ -58,21 +58,22 @@ class ABTestResult(BaseModel):
     regressions: int = 0
     improvements: int = 0
     metric_drifts: int = 0
+    neutrals: int = 0
     changes: list[ABChange] = Field(default_factory=list)
 
     def summary_text(self) -> str:
         """一行中文摘要，供报告标题与日志输出使用。"""
         return (f"Prompt {self.prompt_id} v{self.version_a} vs v{self.version_b} | 共 {self.total} 例 | 未变化 {self.unchanged} | 回归 {self.regressions} | "
-                f"改善 {self.improvements} | 指标漂移 {self.metric_drifts}")
+                f"改善 {self.improvements} | 指标漂移 {self.metric_drifts} | 中性 {self.neutrals}")
 
     def by_direction(self, direction: str) -> list[ABChange]:
         """按方向（regression/improvement/metric_drift/message_change/unchanged）筛选差异。"""
         return [c for c in self.changes if c.direction == direction]
 
 
-def _compare(a, b) -> ABChange:
+def _compare(a, b, policies=None) -> ABChange:
     """比较同一用例在 A/B 两次运行的结果（复用 core.compare 的通用 diff 逻辑）。"""
-    d = compare_outcomes(a, b)
+    d = compare_outcomes(a, b, policies=policies)
     return ABChange(case_id=d.case_id, name=d.name, suite=d.suite, severity=d.severity,
                     verdict_a=d.verdict_a, verdict_b=d.verdict_b, direction=d.direction,
                     message_a=d.message_a, message_b=d.message_b, metric_diffs=d.metric_diffs)
@@ -119,9 +120,10 @@ def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,
                             default_timeout=settings.timeout_per_test,
                             progress=on_done)
         report = runner.run_sync(cases, provider_name=provider_name)
-        # 挂运行溯源（git/Prompt/数据集版本），A/B 报告才能对齐到具体代码与数据
+        # 挂运行溯源（git/Prompt 版本+指纹/数据集指纹/模型/用例指纹）
         from llmqa.core.provenance import attach_provenance
-        attach_provenance(report, root, pm, datasets)
+        attach_provenance(report, root, pm, datasets,
+                          settings=settings, provider_name=provider_name, cases=cases)
         if reporter is not None:
             reporter.finalize(report)   # 每次运行都留标准报告，可审计
         return report
@@ -132,7 +134,10 @@ def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,
     outcomes_b = {o.case_id: o for o in report_b.outcomes}
     # 只对比两次运行都实际产出的用例，避免某侧缺失被误判为回归。
     common = sorted(set(outcomes_a) & set(outcomes_b))
-    changes = [_compare(outcomes_a[cid], outcomes_b[cid]) for cid in common]
+    # 指标判定策略（方向 + 容差），让回归判定按评价口径而非字面 diff
+    from llmqa.core.metrics_policy import load_policies
+    policies = load_policies(root)
+    changes = [_compare(outcomes_a[cid], outcomes_b[cid], policies) for cid in common]
     result = ABTestResult(
         prompt_id=prompt_id, version_a=version_a, version_b=version_b,
         provider=provider_name, run_id_a=report_a.run_id, run_id_b=report_b.run_id,
@@ -141,6 +146,7 @@ def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,
         regressions=sum(1 for c in changes if c.direction == "regression"),
         improvements=sum(1 for c in changes if c.direction == "improvement"),
         metric_drifts=sum(1 for c in changes if c.direction == "metric_drift"),
+        neutrals=sum(1 for c in changes if c.direction == "neutral"),
         changes=changes,
     )
     return result

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -18,7 +19,8 @@ class DatasetManager:
 
     def __init__(self, root: str | Path):
         self.root = Path(root)
-        self._used: set[str] = set()   # 运行溯源：本次实际加载过的数据集名
+        self._used: dict[str, str] = {}   # 运行溯源：name → 内容指纹（sha256）
+        self._hash_cache: dict[Path, str] = {}
 
     def path(self, name: str) -> Path:
         """按固定扩展名顺序把 name 解析到实际文件，找不到即抛 DatasetNotFound。"""
@@ -39,14 +41,22 @@ class DatasetManager:
                 out.append(rel[: -len(p.suffix)])
         return out
 
-    def used_datasets(self) -> list[str]:
-        """本次运行实际加载过的数据集名（按名排序，运行溯源用）。"""
-        return sorted(self._used)
+    def used_datasets(self) -> list[dict]:
+        """本次运行实际加载过的数据集及其内容指纹（按名排序，运行溯源用）。"""
+        return [{"name": name, "content_hash": self._used[name]}
+                for name in sorted(self._used)]
+
+    def _content_hash(self, path: Path) -> str:
+        """数据集文件字节级 sha256：version 之外的防篡改指纹。"""
+        if path not in self._hash_cache:
+            self._hash_cache[path] = hashlib.sha256(
+                path.read_bytes()).hexdigest()[:16]
+        return self._hash_cache[path]
 
     def load(self, name: str) -> Any:
         """按扩展名解析并返回数据：CSV → 字典列表，YAML/JSON → 反序列化对象。"""
-        self._used.add(name)   # 记录使用（运行溯源用）
         path = self.path(name)
+        self._used[name] = self._content_hash(path)   # 记录使用与指纹（运行溯源用）
         if path.suffix == ".csv":
             # utf-8-sig 兼容 Excel 导出的带 BOM 头；newline="" 交给 csv 模块统一处理换行。
             with open(path, "r", encoding="utf-8-sig", newline="") as f:

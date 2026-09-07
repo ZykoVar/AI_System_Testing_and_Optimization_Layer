@@ -1,11 +1,30 @@
 """测试用例注册表：@test 装饰器 + 包发现。"""
 from __future__ import annotations
 
+import hashlib
 import importlib
+import inspect
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from llmqa.core.models import Severity
+
+
+def _source_hash(fn: Callable, item: dict | None = None) -> str:
+    """用例源码指纹（前 12 位 sha256）：同一 id 的内容变化在溯源中可见。
+
+    - 普通用例：取函数源码字节；
+    - 数据驱动生成的闭包：取父函数源码 + 序列化后的数据集记录（数据即用例身份的一部分）。
+    """
+    try:
+        src = inspect.getsource(fn)
+    except (OSError, TypeError):
+        # 生成的闭包无源码，回退到父级信息；调用方应传入 item 一起参与指纹
+        src = repr(fn)
+    if item is not None:
+        src += "\n" + json.dumps(item, ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha256(src.encode("utf-8")).hexdigest()[:12]
 
 
 class SkipTest(Exception):
@@ -28,6 +47,7 @@ class TestCaseDef:
     retries: int | None
     skip: bool
     cost: int = 1   # 预估 LLM 调用次数（成本单位），供 --max-cost 预算控制
+    source_hash: str = ""   # 用例源码指纹：Stable Test ID 的内容维度
     module: str = ""
     qualname: str = field(default="")
 
@@ -62,6 +82,7 @@ def test(
     retries: int | None = None,
     skip: bool = False,
     cost: int = 1,
+    source_hash: str | None = None,
 ) -> Callable:
     """用例注册装饰器。
 
@@ -87,6 +108,8 @@ def test(
             description=description or (fn.__doc__ or "").strip(),
             tags=frozenset(tags), severity=severity,
             timeout=timeout, retries=retries, skip=skip, cost=cost,
+            # 普通用例直接取源码指纹；数据驱动生成用例由调用方显式传入
+            source_hash=source_hash or _source_hash(fn),
             module=fn.__module__, qualname=fn.__qualname__,
         )
         return fn
@@ -137,7 +160,9 @@ def data_driven(
             test(case_id, suite=suite, name=record_name,
                  description="数据集记录 {}".format(item.get("id", case_id)),
                  tags=item_tags, severity=item_sev, timeout=timeout,
-                 cost=item_cost)(generated)
+                 cost=item_cost,
+                 # 数据驱动用例身份 = 断言函数源码 + 数据集记录内容
+                 source_hash=_source_hash(fn, item))(generated)
         return fn
     return decorator
 

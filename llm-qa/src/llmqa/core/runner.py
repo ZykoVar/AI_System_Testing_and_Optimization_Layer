@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from llmqa.assertors.base import AssertionFailed
 from llmqa.core.provenance import RunProvenance
+from llmqa.core.retry import error_kind, is_retryable_error
 from llmqa.core.models import Severity, TestContext, TestOutcome, Verdict
 from llmqa.core.registry import SkipTest, TestCaseDef
 
@@ -24,7 +25,7 @@ class TestReport(BaseModel):
     outcomes: list[TestOutcome] = Field(default_factory=list)
     max_cost: int | None = None   # --max-cost 预算上限（None 表示不限）
     used_cost: int = 0            # 实际消耗的成本单位（按用例声明 cost 累计）
-    schema_version: int = 1       # 报告结构版本：schema 演进时用于识别旧报告
+    schema_version: int = 2       # 报告结构版本：v2 起 provenance 含 content_hash/模型/用例指纹
     provenance: RunProvenance | None = None  # 运行溯源（git/Prompt/数据集版本），见 core.provenance
 
     @property
@@ -102,8 +103,10 @@ class TestRunner:
         start = time.perf_counter()
         verdict, message, tb = Verdict.ERROR, "", None
         metrics: dict = {}
+        evidence: list[str] = []   # 断言附带的证据（裁判理由/引用），随结果落盘
+        skip_reason = ""           # SKIP 语义分类（intentional/budget/fail_fast）
         if case.skip:
-            verdict, message = Verdict.SKIP, "用例标记为 skip"
+            verdict, message, skip_reason = Verdict.SKIP, "用例标记为 skip", "intentional"
         else:
             attempt = 0
             while True:
@@ -113,12 +116,13 @@ class TestRunner:
                     verdict, message = Verdict.PASS, "通过"
                     break
                 except SkipTest as e:
-                    verdict, message = Verdict.SKIP, str(e)
+                    verdict, message, skip_reason = Verdict.SKIP, str(e), "intentional"
                     break
                 except AssertionFailed as e:
                     verdict, message = Verdict.FAIL, str(e)
-                    # 断言可附带数值指标（相似度/裁判分），一并写入结果。
+                    # 断言可附带数值指标与证据，两者都透传到结果（evidence 不得在此丢失）
                     metrics = dict(getattr(e, "metrics", {}) or {})
+                    evidence = list(getattr(e, "evidence", []) or [])
                     break
                 except AssertionError as e:  # 普通 assert 失败 → FAIL（不重试）
                     verdict, message = Verdict.FAIL, f"断言失败: {e}"
@@ -128,12 +132,14 @@ class TestRunner:
                     verdict, message = Verdict.ERROR, f"超时（>{timeout:g}s）"
                     break
                 except Exception as e:  # noqa: BLE001 —— 基础设施/用例代码错误
-                    # 仅对"意外异常"重试；断言失败/超时/跳过已在上方提前返回。
-                    if attempt < retries:
+                    # 重试分桶：只有基础设施故障（429/5xx/网络层）才重试；
+                    # 代码缺陷（KeyError/TypeError 等）重试无意义，直接判 ERROR。
+                    if attempt < retries and is_retryable_error(e):
                         attempt += 1
                         await asyncio.sleep(0.5 * attempt)
                         continue
-                    verdict, message = Verdict.ERROR, f"{type(e).__name__}: {e}"
+                    verdict, message = Verdict.ERROR, "{}: {}: {}".format(
+                        error_kind(e), type(e).__name__, e)
                     tb = traceback.format_exc(limit=8)
                     break
         outcome = TestOutcome(
@@ -142,7 +148,9 @@ class TestRunner:
             severity=case.severity, verdict=verdict,
             duration_ms=(time.perf_counter() - start) * 1000,
             message=message, metrics=metrics, traceback=tb,
+            evidence=evidence,
             retries_used=attempt,   # flaky 可见性：0=一次通过，N=重试 N 次后判定
+            skip_reason=skip_reason,
         )
         self.progress(outcome)
         return outcome
@@ -160,6 +168,7 @@ class TestRunner:
                         case_id=case.id, name=case.name, suite=case.suite,
                         tags=sorted(case.tags), severity=case.severity,
                         verdict=Verdict.SKIP, message="fail-fast：前置高危失败，未执行",
+                        skip_reason="fail_fast",
                     ))
                     return
                 if self.max_cost is not None:
@@ -171,6 +180,7 @@ class TestRunner:
                                 tags=sorted(case.tags), severity=case.severity,
                                 verdict=Verdict.SKIP,
                                 message=f"成本预算耗尽：已用 {self.used_cost}/{self.max_cost}，本用例需 {case.cost}",
+                                skip_reason="budget",
                             ))
                             return
                         self.used_cost += case.cost

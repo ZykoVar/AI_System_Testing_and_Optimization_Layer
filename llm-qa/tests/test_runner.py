@@ -80,15 +80,34 @@ def test_plain_assert_is_fail_not_error():
     clear_registry()
 
 
+def test_evidence_propagates_to_outcome():
+    # 端到端：AssertionFailed 携带的 evidence 必须透传到 TestOutcome（此前曾在此丢失）
+    clear_registry()
+
+    @register_test(id="unit-006c", suite="unit", name="证据用例", retries=0)
+    async def case_with_evidence(ctx):
+        raise AssertionFailed("低分", metrics={"judge_score": 3.0},
+                              evidence=["裁判理由: 答案错误", "各次投票分: [3.0]"])
+
+    report = asyncio.run(TestRunner(make_ctx, retries_on_error=0).run_all(
+        get_registered_cases()))
+    outcome = report.outcomes[0]
+    assert outcome.verdict == Verdict.FAIL
+    assert outcome.evidence == ["裁判理由: 答案错误", "各次投票分: [3.0]"]
+    assert outcome.metrics["judge_score"] == 3.0
+    clear_registry()
+
+
 def test_retries_used_recorded():
-    # ERROR 重试应写入 outcome.retries_used，flaky 可见
+    # 基础设施故障（5xx）重试应写入 outcome.retries_used，flaky 可见
     clear_registry()
     attempts = []
+    from llmqa.clients import LLMError
 
     @register_test(id="unit-006b", suite="unit", name="重试用例", retries=2)
     async def case_flaky(ctx):
         attempts.append(1)
-        raise RuntimeError("第一次失败")
+        raise LLMError("mock", "服务器抖动", status=503)
 
     runner = TestRunner(make_ctx, retries_on_error=2)
     report = asyncio.run(runner.run_all(get_registered_cases()))
@@ -96,6 +115,26 @@ def test_retries_used_recorded():
     assert outcome.verdict == Verdict.ERROR
     assert outcome.retries_used == 2
     assert len(attempts) == 3          # 首次 + 两次重试
+    clear_registry()
+
+
+def test_code_bug_is_not_retried():
+    # 代码缺陷（TypeError）不在重试分桶内：立即 ERROR 且 retries_used=0
+    clear_registry()
+    attempts = []
+
+    @register_test(id="unit-006d", suite="unit", name="缺陷用例", retries=3)
+    async def case_bug(ctx):
+        attempts.append(1)
+        raise TypeError("int + str")
+
+    runner = TestRunner(make_ctx, retries_on_error=3)
+    report = asyncio.run(runner.run_all(get_registered_cases()))
+    outcome = report.outcomes[0]
+    assert outcome.verdict == Verdict.ERROR
+    assert outcome.retries_used == 0
+    assert len(attempts) == 1          # 不重试
+    assert "代码缺陷" in outcome.message
     clear_registry()
 
 

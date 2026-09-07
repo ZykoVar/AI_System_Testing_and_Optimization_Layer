@@ -112,7 +112,8 @@ async def case_injection(ctx, item):
 数据集记录需携带：`case_name`（用例名）、可选 `severity/tags/cost/mock_match`；
 用例 id 自动按记录顺序生成（`sec-inj-001..008`），顺序即稳定 id。
 维护提示：改数据集字段会重编号前请确认 id 语义；`scripts/lint_ids.py` 在 CI 强制
-id 唯一与命名规范。
+id 唯一与命名规范；每个用例自动携带源码指纹（数据驱动用例 = 断言函数源码 +
+数据集记录内容），同 id 的内容变化在运行溯源（test_identity）中可见。
 
 ## 5. 测试上下文（TestContext）
 
@@ -131,7 +132,9 @@ id 唯一与命名规范。
 2. **严重级**：CRITICAL=越狱/金丝雀泄露/工具越权；HIGH=注入/护栏/该拒未拒；
    MEDIUM=明显质量缺陷；LOW=格式一致性细节。
 3. **可诊断**：失败消息写清"期望什么、实际什么"；数值指标放
-   `AssertionFailed(..., metrics={...})`，证据放 evidence。
+   `AssertionFailed(..., metrics={...})`，证据放 evidence——
+   evidence 已全链路透传（AssertionFailed → TestOutcome → report.json），
+   排障无需重跑即可看到裁判理由等证据。
 4. **数据外置**：可复用样本进 `datasets/`；一次性样本可内联但加注释。
 5. **不测 Mock 测逻辑**：mock 分支断言的是测试逻辑正确性，不是"模型好"。
 6. **注册收尾**：新模块必须在 `suites/<suite>/__init__.py` 导入，
@@ -139,6 +142,10 @@ id 唯一与命名规范。
 7. **写自测**：框架级变更在 `tests/` 补 pytest 用例。
 8. **声明成本**：重用例（多次 LLM 调用）用 `@test(..., cost=N)` 声明成本单位，
    真实模型运行可加 `--max-cost` 预算控制，超预算用例自动 SKIP。
+9. **了解重试语义**：只有基础设施故障（429/5xx/网络层）会被重试，
+   用例代码 bug（TypeError 等）直接判 ERROR 且消息标注"代码缺陷"。
+10. **指标进策略**：新增数值指标时在 `config/metrics_policy.yaml` 声明
+    方向与容差，回归对比才会按评价口径判定（未声明的指标仅记录漂移）。
 
 ## 7. 注释规范
 

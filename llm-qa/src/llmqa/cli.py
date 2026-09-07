@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -94,11 +95,18 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p_cmp.add_argument("--last", action="store_true", help="自动取最近两次运行对比")
     p_cmp.add_argument("--baseline", action="store_true",
                        help="A 侧取已登记的基线（llmqa report baseline-set 设置）")
+    p_cmp.add_argument("--baseline-name", default="production",
+                       help="基线名称（默认 production，配合 --baseline 使用）")
     p_cmp.add_argument("--report-dir", default=None, help="报告根目录（默认 settings.report_dir）")
-    p_bset = rep_sub.add_parser("baseline-set", help="把某次运行登记为回归基线")
+    p_bset = rep_sub.add_parser("baseline-set", help="把某次运行登记为命名基线")
     p_bset.add_argument("run_id", help="运行 ID（reports/ 下目录名）")
+    p_bset.add_argument("--name", default="production",
+                        help="基线名称（production/staging/security/performance 等）")
     p_bset.add_argument("--report-dir", default=None)
-    rep_sub.add_parser("baseline-show", help="查看当前登记的基线")
+    p_bshow = rep_sub.add_parser("baseline-show", help="查看基线")
+    p_bshow.add_argument("--name", default="production", help="基线名称")
+    p_bshow.add_argument("--report-dir", default=None)
+    rep_sub.add_parser("baseline-list", help="列出全部命名基线")
 
     sub.add_parser("demo", help="运行内置演示套件（mock Provider）")
     return parser
@@ -160,9 +168,10 @@ def _run(args: argparse.Namespace) -> int:
         max_cost=args.max_cost,
     )
     report = runner.run_sync(cases, provider_name=provider_name)
-    # 运行溯源：git commit / Prompt 版本 / 数据集清单，随报告落盘
+    # 运行溯源：git commit / Prompt 版本+指纹 / 数据集指纹 / 模型 / 用例指纹
     from llmqa.core.provenance import attach_provenance
-    attach_provenance(report, root, prompts, datasets)
+    attach_provenance(report, root, prompts, datasets,
+                      settings=settings, provider_name=provider_name, cases=cases)
     files = reporter.finalize(report)
     pool.close_sync()   # 运行结束释放真实 Provider 连接池（按 run 生命周期而非进程）
     print()
@@ -263,26 +272,76 @@ def _report(args: argparse.Namespace) -> int:
     report_dir = Path(getattr(args, "report_dir", None) or "") if getattr(
         args, "report_dir", None) else (root / settings.report_dir)
 
-    # ---- baseline-set/show：显式回归基线管理 ----
-    baseline_file = report_dir / ".baseline.json"
-    if args.report_action in ("baseline-set", "baseline-show"):
-        if args.report_action == "baseline-show":
-            if not baseline_file.exists():
-                print("尚未登记基线（用 llmqa report baseline-set <run_id> 设置）")
+    # ---- baseline 管理：命名基线（production/staging/security/performance 并存） ----
+    baselines_dir = report_dir / "baselines"
+    legacy_file = report_dir / ".baseline.json"   # 旧版单基线文件，首次访问时迁移
+
+    def baseline_path(name: str) -> Path:
+        return baselines_dir / (name + ".json")
+
+    def migrate_legacy() -> None:
+        """旧 .baseline.json → baselines/production.json（一次性迁移）。"""
+        if legacy_file.exists() and not baseline_path("production").exists():
+            data = json.loads(legacy_file.read_text(encoding="utf-8"))
+            _write_baseline("production", data.get("run_id", ""),
+                            set_at=data.get("set_at", "?"))
+            legacy_file.unlink(missing_ok=True)
+
+    def _write_baseline(name: str, run_id: str, *, set_at: str | None = None) -> None:
+        """从运行报告提取溯源信息，写出富元数据基线文件。"""
+        baselines_dir.mkdir(parents=True, exist_ok=True)
+        run_path = report_dir / run_id / "report.json"
+        report_data = json.loads(run_path.read_text(encoding="utf-8"))
+        prov = report_data.get("provenance") or {}
+        created_by = (os.environ.get("USERNAME") or os.environ.get("USER") or "unknown")
+        baseline_path(name).write_text(json.dumps({
+            "schema_version": 1,
+            "name": name,
+            "run_id": run_id,
+            "git_commit": prov.get("git_commit", ""),
+            "prompts_used": prov.get("prompts_used", []),
+            "datasets_used": prov.get("datasets_used", []),
+            "created_at": set_at or dt.datetime.now().isoformat(timespec="seconds"),
+            "created_by": created_by,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if args.report_action in ("baseline-set", "baseline-show", "baseline-list"):
+        migrate_legacy()
+        if args.report_action == "baseline-list":
+            if not baselines_dir.exists():
+                print("尚未登记任何基线")
                 return 2
-            data = json.loads(baseline_file.read_text(encoding="utf-8"))
-            print("当前基线: {}".format(data.get("run_id")))
-            print("登记时间: {}".format(data.get("set_at", "?")))
+            for p in sorted(baselines_dir.glob("*.json")):
+                data = json.loads(p.read_text(encoding="utf-8"))
+                commit = (data.get("git_commit") or "")[:8]
+                print("{:<14} run={}  commit={}  at={}  by={}".format(
+                    data.get("name"), data.get("run_id"), commit or "-",
+                    data.get("created_at", "?"), data.get("created_by", "?")))
             return 0
+        if args.report_action == "baseline-show":
+            path = baseline_path(args.name)
+            if not path.exists():
+                print("基线 {} 不存在（llmqa report baseline-set <run_id> --name {}）".format(
+                    args.name, args.name))
+                return 2
+            data = json.loads(path.read_text(encoding="utf-8"))
+            print("基线: {}  run: {}  commit: {}  at: {}  by: {}".format(
+                data.get("name"), data.get("run_id"),
+                (data.get("git_commit") or "-")[:8],
+                data.get("created_at", "?"), data.get("created_by", "?")))
+            if data.get("prompts_used"):
+                print("Prompt: " + ", ".join(
+                    "{}:v{}@{}".format(u.get("id"), u.get("version"),
+                                       (u.get("content_hash") or "")[:6])
+                    for u in data["prompts_used"]))
+            return 0
+        # baseline-set
         path = report_dir / args.run_id / "report.json"
         if not path.exists():
             print("报告不存在: " + str(path))
             return 2
-        baseline_file.write_text(json.dumps({
-            "run_id": args.run_id,
-            "set_at": dt.datetime.now().isoformat(timespec="seconds"),
-        }, ensure_ascii=False, indent=2), encoding="utf-8")
-        print("已登记基线: {}".format(args.run_id))
+        _write_baseline(args.name, args.run_id)
+        print("已登记基线 {} → {}".format(args.name, args.run_id))
         return 0
 
     # ---- list：按时间倒序列出全部运行 ----
@@ -307,16 +366,19 @@ def _report(args: argparse.Namespace) -> int:
             return 2
         run_a, run_b = runs[-2].parent.name, runs[-1].parent.name
     elif args.baseline:
-        # A 侧取登记的显式基线，B 侧取指定运行或最近一次
-        if not baseline_file.exists():
-            print("尚未登记基线（llmqa report baseline-set <run_id>）")
+        # A 侧取命名基线，B 侧取指定运行或最近一次
+        migrate_legacy()
+        path = baseline_path(args.baseline_name)
+        if not path.exists():
+            print("基线 {} 不存在（llmqa report baseline-set <run_id> --name {}）".format(
+                args.baseline_name, args.baseline_name))
             return 2
-        run_a = json.loads(baseline_file.read_text(encoding="utf-8"))["run_id"]
+        run_a = json.loads(path.read_text(encoding="utf-8"))["run_id"]
         if args.run_b:
             run_b = args.run_b
         else:
             runs = sorted((d for d in report_dir.glob("*/report.json")
-                           if d.parent.name not in ("compare", run_a)),
+                           if d.parent.name not in ("compare", "baselines", run_a)),
                           key=lambda p: p.stat().st_mtime)
             if not runs:
                 print("除基线外没有其他运行可对比")
@@ -341,16 +403,16 @@ def _report(args: argparse.Namespace) -> int:
     if prov_a and prov_b and prov_a.get("git_commit") != prov_b.get("git_commit"):
         print("代码基线: A={} B={}".format(
             (prov_a.get("git_commit") or "?")[:8], (prov_b.get("git_commit") or "?")[:8]))
-    # 预算差异提示：max_cost 不同的运行对比会产生大量"预算跳过"噪声
-    if data_a.get("max_cost") != data_b.get("max_cost"):
-        print("注意: 两次运行的 max_cost 不同（{} vs {}），预算跳过可能被计为回归噪声".format(
-            data_a.get("max_cost"), data_b.get("max_cost")))
     outcomes_a = {o["case_id"]: TestOutcome.model_validate(o) for o in data_a["outcomes"]}
     outcomes_b = {o["case_id"]: TestOutcome.model_validate(o) for o in data_b["outcomes"]}
     common = sorted(set(outcomes_a) & set(outcomes_b))
     only_a = sorted(set(outcomes_a) - set(outcomes_b))
     only_b = sorted(set(outcomes_b) - set(outcomes_a))
-    diffs = [compare_outcomes(outcomes_a[cid], outcomes_b[cid]) for cid in common]
+    # 指标判定策略（方向 + 容差），见 config/metrics_policy.yaml
+    from llmqa.core.metrics_policy import load_policies
+    policies = load_policies(root)
+    diffs = [compare_outcomes(outcomes_a[cid], outcomes_b[cid], policies=policies)
+             for cid in common]
     counts = summarize_diffs(diffs)
 
     # 输出对比报告（markdown + json）
@@ -369,10 +431,11 @@ def _report(args: argparse.Namespace) -> int:
     }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print("对比 {a}（基线） vs {b}（当前） | 共 {t} 例 | 回归 {r} | 改善 {i} | "
-          "指标漂移 {m} | 消息变化 {c} | 未变化 {u}".format(
+          "指标漂移 {m} | 消息变化 {c} | 中性 {n} | 未变化 {u}".format(
               a=run_a, b=run_b, t=counts["total"], r=counts["regressions"],
               i=counts["improvements"], m=counts["metric_drifts"],
-              c=counts["message_changes"], u=counts["unchanged"]))
+              c=counts["message_changes"], n=counts["neutrals"],
+              u=counts["unchanged"]))
     if only_a:
         print("仅基线有（用例被移除）: " + ", ".join(only_a[:10]))
     if only_b:
@@ -389,8 +452,8 @@ def _render_compare_md(run_a: str, run_b: str, diffs: list,
         "",
         f"- 基线（旧）: {run_a}  当前（新）: {run_b}",
         "- 结论: 共 {total} 例 | 回归 {regressions} | 改善 {improvements} | "
-        "指标漂移 {metric_drifts} | 消息变化 {message_changes} | 未变化 {unchanged}".format(
-            **counts),
+        "指标漂移 {metric_drifts} | 消息变化 {message_changes} | 中性 {neutrals} | "
+        "未变化 {unchanged}".format(**counts),
         "",
     ]
 
@@ -405,14 +468,19 @@ def _render_compare_md(run_a: str, run_b: str, diffs: list,
                 lines.append(f"  - A: {d.message_a[:150]}")
                 lines.append(f"  - B: {d.message_b[:150]}")
             for metric, pair in d.metric_diffs.items():
-                lines.append("  - {}: {} → {}".format(metric, pair["a"], pair["b"]))
+                sign = d.metric_signs.get(metric, "drift")
+                lines.append("  - {}: {} → {}（{}）".format(
+                    metric, pair["a"], pair["b"], sign))
         lines.append("")
 
-    section("回归（基线通过/更优 → 当前失败/更差）",
+    section("回归（判定劣化或指标按策略显著劣化）",
             [d for d in diffs if d.direction == "regression"])
     section("改善", [d for d in diffs if d.direction == "improvement"])
-    section("指标漂移", [d for d in diffs if d.direction == "metric_drift"])
+    section("指标漂移（仅记录，未声明策略或中性方向）",
+            [d for d in diffs if d.direction == "metric_drift"])
     section("失败消息变化", [d for d in diffs if d.direction == "message_change"])
+    section("中性（budget/fail_fast 跳过，不计回归）",
+            [d for d in diffs if d.direction == "neutral"])
     if only_a:
         lines.append("## 仅基线存在（被移除的用例）")
         lines.append("")

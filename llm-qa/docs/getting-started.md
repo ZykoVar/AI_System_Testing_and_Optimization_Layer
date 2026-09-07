@@ -57,11 +57,17 @@ llmqa report list
 llmqa report compare --last
 llmqa report compare <运行ID-A> <运行ID-B>
 
-# 显式回归基线（发布流程）
-llmqa report baseline-set <run_id>   # 全绿运行登记为基线
-llmqa report baseline-show
-llmqa report compare --baseline      # 与基线对比，退出码 1 = 有回归
+# 显式回归基线（发布流程，支持命名多基线）
+llmqa report baseline-set <run_id> --name production
+llmqa report baseline-set <run_id> --name security
+llmqa report baseline-list
+llmqa report baseline-show --name production
+llmqa report compare --baseline --baseline-name production   # 退出码 1 = 有回归
 ```
+
+对比判定遵循指标策略（方向+容差，见 config/metrics_policy.yaml）：
+judge 分数 8.1→8.0 不算回归，8.1→7.1 才算；预算/快速失败跳过视为中性；
+每次运行的 report.json 携带完整溯源（commit/内容哈希/模型/用例指纹）。
 
 ## 4. 接入真实模型
 

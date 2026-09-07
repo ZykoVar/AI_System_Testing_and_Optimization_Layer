@@ -88,8 +88,13 @@ except LLMError as e:
 
 真实 Provider 下关注：退避重试是否生效、错误是否被正确分类
 （限流 vs 鉴权 vs 超时），避免把 429 误当质量缺陷。
+框架级重试分桶：429/5xx/网络层才重试，代码缺陷立即判 ERROR（见 docs/architecture.md）。
 
 ## 7. 报告与趋势
 
 性能用例通过 `metrics` 把完整分位数据写进 `report.json`；
 CI 可解析该文件生成趋势图（见 docs/ci-integration.md 的 artifact 用法）。
+
+跨运行对比遵循**指标策略**（`config/metrics_policy.yaml`）：
+p95 等延迟指标按相对基线 20% 容差判定——容差内不算回归，
+越界且方向劣化才计回归；RPS/token 吞吐越高越好，错误率越低越好。

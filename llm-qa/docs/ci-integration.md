@@ -54,23 +54,45 @@ scripts/ci_gate.ps1        # 解析报告 JSON，按严重级判定门禁
 补充：运行间回归门禁可用 `llmqa report compare --last`（退出码 1 = 存在回归），
 与严重级门禁串联：任一拦截 → 发布受阻。
 
-### 4.1 回归基线（推荐发布流程）
+### 4.1 回归基线（推荐发布流程，命名多基线）
 
 ```powershell
-# 发布窗口全绿后，把该次运行登记为基线
-llmqa report baseline-set <run_id>
+# 发布窗口全绿后，把该次运行登记为命名基线（production/security/performance 可并存）
+llmqa report baseline-set <run_id> --name production
 # 后续每次运行与基线对比（退出码 1 = 存在回归）
-llmqa report compare --baseline
+llmqa report compare --baseline --baseline-name production
 ```
 
-基线文件存于 `reports/.baseline.json`，可随仓库提交实现"团队共享基线"。
+基线文件存于 `reports/baselines/<name>.json`，内容为富元数据
+（git commit、Prompt 版本+内容哈希、数据集指纹、创建人与时间），
+是**测试资产**，可随仓库提交实现"团队共享基线"。
 
-### 4.2 运行溯源（provenance）
+### 4.2 运行溯源（provenance，实验可重建）
 
-每次运行的 `report.json` 都携带溯源块：git commit（及工作区是否脏）、
-Python 版本、时区、本次实际使用的 Prompt 版本清单（prompts_used）与
-数据集清单（datasets_used）。compare 输出会展示两次运行的 commit 差异——
-回答"这次回归发生在哪次代码变更上"。
+每次运行的 `report.json`（schema_version=2）携带溯源块：
+
+```json
+{
+  "git_commit": "...", "git_dirty": false,
+  "python_version": "3.10.11", "timezone": "UTC",
+  "model": {"provider": "openai", "kind": "openai_compat", "model": "gpt-4o-mini"},
+  "prompts_used": [{"id": "support-agent", "version": 2, "content_hash": "sha256前16位"}],
+  "datasets_used": [{"name": "adversarial/injections", "content_hash": "..."}],
+  "test_identity": {"sec-inj-001": "用例源码指纹"}
+}
+```
+
+version 只是命名，content_hash 才是防篡改指纹；test_identity 让
+"用例 id 没变但内容被改过"在对比中可见。compare 输出会展示两次运行的
+commit 差异——回答"这次回归发生在哪次代码变更上"。
+
+### 4.3 回归判定语义
+
+- **指标策略**（`config/metrics_policy.yaml`）：judge 分数容差 0.3、
+  延迟相对容差 20% 等——容差内不算回归，越界且方向劣化才算；
+- **SKIP 分类**：budget/fail_fast 跳过视为中性（不计回归），
+  intentional 跳过视为覆盖丢失（计回归）；
+- **重试分桶**：429/5xx/网络层才重试，代码缺陷（TypeError 等）立即判 ERROR。
 
 ## 5. 与其他系统集成
 

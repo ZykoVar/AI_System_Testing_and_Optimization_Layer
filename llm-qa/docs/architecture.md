@@ -109,12 +109,28 @@ MockRule(match="正则", reply="...", match_transcript=True)  # 匹配整个会�
 | --- | --- | --- | --- |
 | PASS | 断言全部通过 | - | 否 |
 | FAIL | 被测对象不满足要求（缺陷） | 否 | 是 |
-| ERROR | 基础设施/超时/用例代码错误 | 是（retries_on_error） | 是 |
-| SKIP | 环境不满足（如缺 API Key） | - | 否 |
+| ERROR | 基础设施故障 / 代码缺陷 | 仅基础设施类（见重试分桶） | 是 |
+| SKIP | 按 skip_reason 分类（见下） | - | 否 |
+
+**重试分桶**（core/retry.py）：LLMError(429/408/425/5xx) 与 httpx 网络层异常
+→ 重试；其余一切（KeyError/TypeError/AssertionError）→ 代码缺陷，不重试，
+立即判 ERROR 并在消息中标注分类。
+
+**SKIP 语义分类**（skip_reason）：intentional（有意跳过）｜budget（预算耗尽）｜
+fail_fast（前置高危失败）。回归对比时 budget/fail_fast 视为**中性**（未执行≠变差），
+intentional 视为覆盖丢失计入回归。
 
 严重级五档：INFO < LOW < MEDIUM < HIGH < CRITICAL。
 报告按严重级倒序排列失败；`--fail-fast` 在 HIGH 及以上失败时停止调度新用例；
 CI 门禁按严重级分层（见 docs/ci-integration.md）。
+
+## 4.5 运行溯源（Provenance）
+
+每次运行的报告携带：git commit、Prompt 版本+内容哈希（sha256）、数据集指纹、
+模型接入信息、用例源码指纹（case_id → source_hash）。
+version 是命名约定，content_hash 才是防篡改依据；配合命名基线
+（reports/baselines/<name>.json）与指标策略（config/metrics_policy.yaml），
+回归对比回答的不只是"变没变"，而是"在哪次代码/数据/Prompt 变更上变的"。
 
 ## 5. 扩展点
 

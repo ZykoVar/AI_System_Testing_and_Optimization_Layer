@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
 import re
 from pathlib import Path
 from typing import Any
@@ -95,7 +96,8 @@ class PromptManager:
         self.root = Path(root)
         self._templates: dict[str, dict[int, PromptTemplate]] = {}
         self._pins: dict[str, int] = {}
-        self._used: dict[str, int] = {}   # 运行溯源：本次实际渲染过的 (prompt_id → 解析版本)
+        self._used: dict[str, dict] = {}   # 运行溯源：本次实际渲染过的 (prompt_id → {version, content_hash})
+        self._hash_cache: dict[tuple, str] = {}   # (id, version) → sha256，避免重复计算
 
     # ---------- 全局版本钉住（A/B 测试用） ----------
     def pin(self, prompt_id: str, version: int) -> None:
@@ -109,10 +111,24 @@ class PromptManager:
         else:
             self._pins.pop(prompt_id, None)
 
+    def _content_hash(self, template: PromptTemplate) -> str:
+        """模板内容指纹：优先对源文件字节 sha256（捕获一切改动），无文件时对全文。"""
+        key = (template.id, template.version)
+        if key in self._hash_cache:
+            return self._hash_cache[key]
+        if template.path is not None and template.path.exists():
+            payload = template.path.read_bytes()
+        else:
+            payload = template.full_text().encode("utf-8")
+        digest = hashlib.sha256(payload).hexdigest()[:16]
+        self._hash_cache[key] = digest
+        return digest
+
     def used_prompts(self) -> list[dict]:
-        """本次运行实际渲染过的 Prompt 及其解析版本（按 id 排序，运行溯源用）。"""
-        return [{"id": pid, "version": ver}
-                for pid, ver in sorted(self._used.items())]
+        """本次运行实际渲染过的 Prompt 及其解析版本与内容指纹（按 id 排序，运行溯源用）。"""
+        return [{"id": pid, "version": info["version"],
+                 "content_hash": info["content_hash"]}
+                for pid, info in sorted(self._used.items())]
 
     # ---------- 加载与查询 ----------
     def load(self) -> PromptManager:
@@ -173,7 +189,10 @@ class PromptManager:
         if version is None:
             version = self._pins.get(prompt_id)
         template = self.get(prompt_id, version)
-        self._used[template.id] = template.version   # 记录实际解析版本（运行溯源用）
+        self._used[template.id] = {
+            "version": template.version,
+            "content_hash": self._content_hash(template),
+        }   # 记录实际解析版本与内容指纹（version 只是命名，hash 才能防篡改）
         variables = dict(variables or {})   # 拷贝一份，避免渲染过程污染调用方的字典
         # 1. 必填校验
         missing = [k for k, spec in template.variables.items()

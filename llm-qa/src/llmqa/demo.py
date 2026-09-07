@@ -137,7 +137,9 @@ def run() -> int:
     report = runner.run_sync(cases, provider_name=settings.default_provider)
     # 演示运行同样挂溯源，保持"任何运行都可追溯"的不变式
     from llmqa.core.provenance import attach_provenance
-    attach_provenance(report, root, prompts, datasets)
+    attach_provenance(report, root, prompts, datasets,
+                      settings=settings, provider_name=settings.default_provider,
+                      cases=cases)
     files = reporter.finalize(report)
     pool.close_sync()
     print()

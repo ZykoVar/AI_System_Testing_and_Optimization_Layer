@@ -54,6 +54,8 @@ class TestOutcome(BaseModel):
     evidence: list[str] = Field(default_factory=list)       # 证据文本/引用
     traceback: str | None = None  # 仅在 ERROR（基础设施异常）时填充，便于报告定位
     retries_used: int = 0  # 本次判定前因 ERROR 实际重试的次数（0=一次通过），用于 flaky 可见性
+    skip_reason: str = ""  # SKIP 语义分类：intentional | budget | fail_fast（""=非 SKIP）
+                           # 回归对比时 budget/fail_fast 视为中性，避免误报回归
 
 
 class TestContext(BaseModel):

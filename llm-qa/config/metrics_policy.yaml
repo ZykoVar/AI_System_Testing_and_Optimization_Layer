@@ -1,0 +1,25 @@
+# 指标漂移判定策略（evaluation engine 配置）
+# direction: higher_better=越大越好 / lower_better=越小越好 / neutral=仅记录
+# tolerance: 绝对值 或 相对百分比（字符串以 % 结尾，按基线值计算）
+# 未声明策略的指标：任何变化都记录为 metric_drift（仅记录，不算回归）
+metrics:
+  # LLM-as-Judge：评分噪声通常 ±0.3，容差内不报漂移
+  judge_score: {direction: higher_better, tolerance: 0.3}
+  judge_agreement: {direction: higher_better, tolerance: 0.1}
+  similarity: {direction: higher_better, tolerance: 0.05}
+  # 延迟：相对基线 20% 内视为噪声
+  min_ms: {direction: lower_better, tolerance: 20%}
+  mean_ms: {direction: lower_better, tolerance: 20%}
+  p50_ms: {direction: lower_better, tolerance: 20%}
+  p90_ms: {direction: lower_better, tolerance: 20%}
+  p95_ms: {direction: lower_better, tolerance: 20%}
+  p99_ms: {direction: lower_better, tolerance: 20%}
+  # 检索质量：召回/命中/排序
+  mean_recall_at_k: {direction: higher_better, tolerance: 0.05}
+  mean_hit_at_k: {direction: higher_better, tolerance: 0.05}
+  mean_mrr: {direction: higher_better, tolerance: 0.05}
+  mean_precision_at_k: {direction: higher_better, tolerance: 0.05}
+  # 吞吐与错误
+  requests_per_second: {direction: higher_better, tolerance: 20%}
+  tokens_per_second: {direction: higher_better, tolerance: 20%}
+  error_rate: {direction: lower_better, tolerance: 0.05}
