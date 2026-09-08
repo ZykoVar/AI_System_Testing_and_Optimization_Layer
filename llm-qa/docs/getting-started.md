@@ -105,7 +105,7 @@ llmqa run --provider anthropic --suite llm
 | 场景 | 接入方式 |
 | --- | --- |
 | 统一模型网关（100+ 模型/重试/成本） | `kind: litellm`（LiteLLM 替代手写单家适配器） |
-| Ragas 指标当裁判 | `Judge(client, backend=RagasJudgeBackend(...))`（判定语义仍归本项目） |
+| Ragas 指标当裁判 | `Judge(client, backend=RagasJudgeBackend(...))`——**接入骨架**（contract）：JudgeBackend 契约与参考实现已备，ragas.evaluate 绑定需按锁定版本补全约 10 行 |
 | 真实向量库检索 | `RAGHarness(corpus, client, retriever=我的检索器)`（离线 CI 保留 BM25） |
 | 外部规模压测 | k6 / locust（`core/load.py` 仅做套件内嵌压测，见性能文档） |
 

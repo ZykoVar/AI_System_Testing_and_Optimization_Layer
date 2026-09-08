@@ -19,7 +19,7 @@ llm_learn
     ├── Baseline Management      基线即测试资产：commit/哈希/创建人随基线存档，团队共享
     ├── Metric Policy            指标漂移策略（方向+容差）：judge ±0.3、延迟 ±20% 等
     ├── Provenance / 可追溯     每次运行记录 commit/内容哈希/模型/用例指纹（可追溯的实验条件）
-    ├── Mature-tool Backends    可插拔成熟工具后端：LiteLLM 网关、Ragas 裁判、真实向量库检索
+    ├── Mature-tool Backends    可插拔成熟工具后端：LiteLLM 网关、真实向量库检索（可用）；Ragas 接入骨架
     └── CI Quality Gate          四层门禁 + L3 双门禁闭环（严重级 gate.py + 回归 compare）
 ```
 

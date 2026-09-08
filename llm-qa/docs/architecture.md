@@ -134,11 +134,12 @@ version 是命名约定，content_hash 才是防篡改依据；配合命名基�
 
 ## 5. 扩展点
 
-- **新 Provider**：实现 `LLMClient` + 在 `clients/factory.py` 注册 kind。
+- **新 Provider（薄化策略）**：新增单家适配器不再是默认路径——统一走 LiteLLM（kind: litellm，100+ 模型归一化）；openai_compat/anthropic 保留为离线/轻依赖后备。核心命题不是支持多少模型，而是把任何模型/评测引擎的结果纳入统一 QA 生命周期。
 - **成熟工具后端**（`llmqa/ext/`，全部懒加载，不装则离线 CI 不受影响；
   `pip install -e ".[ext]"` 激活）：
   - LiteLLM 统一网关：`providers.yaml` 设 `kind: litellm`（100+ 模型/重试/成本）；
-  - Ragas 指标：实现 `JudgeBackend` 协议接入为裁判后端（投票/证据/门禁仍归 Judge）；
+  - Ragas 指标：`JudgeBackend` 契约 + 接入骨架（contract，绑定按版本补全；
+    投票/证据/门禁仍归 Judge）——不宣称 production-ready；
   - 外部检索后端：实现 `Retriever` 协议传入 `RAGHarness(retriever=...)`
     （生产接 Chroma/Qdrant/LlamaIndex，离线 CI 保留 BM25-lite）。
 - **新断言**：在 `assertors/` 添加函数或 Judge 维度。
@@ -146,3 +147,20 @@ version 是命名约定，content_hash 才是防篡改依据；配合命名基�
   把包名加入 `DEFAULT_PACKAGES`。
 - **新数据集**：`datasets/` 下任意 YAML/JSON/CSV，用例内 `ctx.datasets.load()`。
 - **新 Prompt**：`prompts/` 下 YAML，CLI `llmqa prompts validate/scan` 纳入门禁。
+
+## 6. 项目边界（不做什么）
+
+```text
+不继续卷：
+  ❌ 更多 evaluator / 更多 LLM provider / 更多 RAG metric / 更多向量数据库
+  ❌ 更复杂的 tracing / 自建 SaaS dashboard / 大型分布式压测（交给 k6/locust）
+
+继续卷（项目壁垒所在）：
+  ✅ Test identity → Baseline → Provenance → Compatibility
+  ✅ Regression semantics → Metric policy → Severity policy
+  ✅ CI gate → Release decision
+      （Evaluation → Normalize → Compare → Policy → Decision）
+```
+
+成熟工具当"引擎"，本项目当"判定层"；对成熟工具的声明以"可用适配 vs
+接入骨架"如实区分（见 llmqa/ext/）。
