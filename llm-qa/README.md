@@ -18,10 +18,27 @@
 | Prompt 管理 | 版本化模板库、变量声明与渲染校验、版本 diff、状态流转（draft/active/deprecated）、发布前注入扫描 |
 | LLM 质量 | 格式合规（JSON Schema）、指令遵循、事实准确性（Golden QA + Judge）、幻觉/拒答、一致性、多语言、语气安全、长度控制 |
 | RAG 专项 | 检索质量（recall@k/hit@k/MRR/precision@k）、分块质量、忠实性、相关性、引用质量、端到端管线 |
-| Agent | 工具选择、参数 Schema、多步规划、会话记忆、循环检测、预算护栏、工具白名单 |
+| Agent | 工具选择、参数 Schema、多步规划、会话记忆、循环检测、预算护栏、工具白名单、**行为断言 DSL**（工具序列/参数/成本/审批/状态变更，平台无关） |
 | 安全红队 | 直接/间接注入、越狱、提示词窃取、PII 金丝雀、有害内容拒答与防误拒、数据外泄、混淆绕过 |
 | 性能 | 延迟分位（P50-P99）、TTFT、吞吐、并发扩展、成本与 token 效率、长上下文、限流行为 |
 | 回归平台 | 运行溯源（commit/内容哈希）、命名基线、report compare（指标策略+SKIP 语义）、严重级门禁 |
+
+## 战略定位：AI System Testing & Optimization Layer
+
+llm_learn **不做**"最强的 Eval 产品"，而做**把 Eval/Observability 产品、Agent Runtime 与 CI 串起来的测试与优化层**：
+
+```text
+能力（外部平台/成熟工具）              工程体系（本项目壁垒）
+├── LiteLLM：模型网关            ├── 统一测试模型（TestOutcome）
+├── Ragas：LLM/RAG 指标          ├── AgentTrajectory 轨迹统一模型
+├── LangSmith/Langfuse/Phoenix： ├── 行为断言 DSL（规定 Agent 应该怎么行为）
+│   Agent trace / 在线监控        ├── 双态运行（mock 验证逻辑 / 真实验收）
+├── 向量库：真实检索             ├── 回归语义（兼容性/容差/基线/门禁）
+└── k6/locust：大规模压测        └── Provenance（实验可追溯）
+```
+
+接入方式：`llmqa/ext/` 的 Adapter 协议（LLM 客户端 / Judge 后端 / 检索后端 /
+轨迹归一），懒加载、离线 CI 不受影响。
 
 ## 快速开始
 
@@ -80,11 +97,12 @@ llm-qa/
 │   ├── config.py           # Pydantic 配置模型，支持环境变量展开
 │   ├── clients/            # LLMClient 抽象 + mock/openai_compat/anthropic/litellm + 连接池
 │   ├── core/               # 用例模型、注册表、运行器、报告器、对比引擎、溯源、指标
-│   ├── assertors/          # 确定性断言 + JSON Schema + LLM-as-Judge（后端可插拔）
+│   ├── trajectory.py       # AgentTrajectory 轨迹统一模型 + TrajectoryAdapter 协议
+│   ├── assertors/          # 确定性断言 + JSON Schema + Judge（后端可插拔）+ 行为断言 DSL
 │   ├── prompts/            # PromptManager + PromptScanner（注入扫描）+ A/B 测试
 │   ├── datasets/           # 数据集加载器（YAML/JSON/CSV）
-│   ├── harnesses/          # RAGHarness（Retriever 可插拔）/ AgentHarness
-│   ├── ext/                # 成熟工具适配层：LiteLLM（可用）/ Ragas 接入骨架（懒加载）
+│   ├── harnesses/          # RAGHarness（Retriever 可插拔）/ AgentHarness（护栏 + 轨迹归一）
+│   ├── ext/                # 成熟工具适配层：LiteLLM（可用）/ Ragas·LangSmith·Langfuse 骨架
 │   ├── suites/             # 五大内置测试套件（llm/rag/agent/security/performance）
 │   ├── demo.py             # 内置演示套件
 │   └── cli.py              # llmqa 命令行

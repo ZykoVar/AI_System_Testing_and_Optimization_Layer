@@ -28,16 +28,21 @@ async def _judge_accuracy(ctx: TestContext, item_id: str, match: str) -> None:
     ])
     resp = await subject.generate(
         [Message.user(item["question"])], temperature=0.0, max_tokens=512)
-    judge = ctx.providers.get_mock(rules=[  # 裁判独立脚本化：固定 9 分，隔离裁判噪声只测被测链路
+    # 裁判同样双态：mock 态脚本固定 9 分（隔离裁判噪声验证链路）；
+    # 真实态用真实裁判——避免"mock 裁判永远给 9 分"造成的绿色假象
+    judge = Judge(scripted_or_real(ctx, rules=[
         MockRule(match="评分标准", reply='{"score": 9, "reasoning": "准确"}'),
-    ])
-    await Judge(judge).assert_score(
+    ]))
+    verdict = await judge.assert_score(
         question=item["question"],
         answer=resp.text,
         context="",
         criteria=item["judge_criteria"],
         min_score=ctx.settings.thresholds.judge_min_score,  # 阈值取全局配置，避免各用例硬编码不一致
     )
+    # PASS 也落盘判定数据：真实运行沉淀 judge 分数与理由，而非只有"通过"
+    ctx.record(judge_score=verdict.score)
+    ctx.add_evidence("裁判理由: " + verdict.reasoning)
 
 
 @test(

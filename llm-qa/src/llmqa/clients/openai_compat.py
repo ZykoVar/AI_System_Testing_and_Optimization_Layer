@@ -127,8 +127,13 @@ class OpenAICompatClient(LLMClient):
                 # 个别模型返回非法 JSON，保底保留原文，避免整个响应解析失败。
                 args = {"_raw": fn.get("arguments", "")}
             tool_calls.append(ToolCall(id=tc.get("id") or "", name=fn.get("name", ""), arguments=args))
+        text = msg.get("content") or ""
+        if not text:
+            # 推理模型兼容：DeepSeek 等推理模型可能把最终答案放在
+            # reasoning_content 而 content 为空（首跑实测复现），回退读取
+            text = msg.get("reasoning_content") or ""
         return LLMResponse(
-            text=msg.get("content") or "",
+            text=text,
             tool_calls=tool_calls,
             finish_reason=choice.get("finish_reason"),
             usage=usage,
@@ -166,8 +171,10 @@ class OpenAICompatClient(LLMClient):
                 except json.JSONDecodeError:
                     continue  # 忽略个别非法帧，保持流式输出鲁棒
                 delta = (obj.get("choices") or [{}])[0].get("delta") or {}
-                if delta.get("content"):
-                    yield StreamChunk(text_delta=delta["content"])
+                # 推理模型流式兼容：content 为空时回退 reasoning_content
+                text_delta = delta.get("content") or delta.get("reasoning_content") or ""
+                if text_delta:
+                    yield StreamChunk(text_delta=text_delta)
                 if obj.get("choices") and obj["choices"][0].get("finish_reason"):
                     yield StreamChunk(finish_reason=obj["choices"][0]["finish_reason"])
 

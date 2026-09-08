@@ -25,6 +25,18 @@ def _resolve_root(config_dir: str | None = None) -> Path:
     return repo_root()
 
 
+def apply_provider_override(settings, provider_name: str | None) -> str:
+    """把 CLI --provider 注入 Settings.default_provider 并返回实际生效的 provider。
+
+    这是双态运行的命门：ctx.client() 与 scripted_or_real 都读
+    settings.default_provider，若只改报告标签而不同步注入，
+    "真实模型测试"会静默跑成 mock（历史上踩过此坑，有回归测试守护）。
+    """
+    if provider_name:
+        settings.default_provider = provider_name
+    return settings.default_provider
+
+
 def _build_arg_parser() -> argparse.ArgumentParser:
     """构造参数解析器：run / prompts / datasets / demo 四个子命令。"""
     parser = argparse.ArgumentParser(
@@ -131,11 +143,12 @@ def _run(args: argparse.Namespace) -> int:
     root = _resolve_root(args.config)
     # config 未显式指定时回退到仓库默认 config 目录
     settings = Settings.load(args.config or (root / "config"))
+    # 关键路由：--provider 必须注入 default_provider，否则 ctx.client() 与
+    # scripted_or_real 仍读 settings 里的旧默认值，真实模型测试会静默跑成 mock
+    provider_name = apply_provider_override(settings, args.provider)
     prompts = PromptManager(root / "prompts").load()
     datasets = DatasetManager(root / "datasets")
     pool = ClientPool(settings)
-    # CLI 显式指定优先，否则用 settings 默认 Provider
-    provider_name = args.provider or settings.default_provider
 
     def ctx_factory() -> TestContext:
         import uuid
@@ -171,13 +184,14 @@ def _run(args: argparse.Namespace) -> int:
         progress=reporter.on_case_done,
         max_cost=args.max_cost,
     )
-    report = runner.run_sync(cases, provider_name=provider_name)
+    # 运行 + 同循环关闭连接池（跨循环关闭会崩：Event loop is closed）
+    from llmqa.core.runner import run_and_close_sync
+    report = run_and_close_sync(runner, cases, pool, provider_name)
     # 运行溯源：git commit / Prompt 版本+指纹 / 数据集指纹 / 模型 / 用例指纹
     from llmqa.core.provenance import attach_provenance
     attach_provenance(report, root, prompts, datasets,
                       settings=settings, provider_name=provider_name, cases=cases)
     files = reporter.finalize(report)
-    pool.close_sync()   # 运行结束释放真实 Provider 连接池（按 run 生命周期而非进程）
     print()
     print(report.summary_text())
     print("报告: " + ", ".join(f"{k} → {v}" for k, v in files.items()))

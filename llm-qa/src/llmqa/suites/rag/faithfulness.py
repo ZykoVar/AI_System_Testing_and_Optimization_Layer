@@ -21,9 +21,10 @@ def _harness(ctx: TestContext, reply: str) -> RAGHarness:
 
 
 def _judge(ctx: TestContext, score: float = 9.0) -> Judge:
-    """构造裁判客户端（mock 返回指定 JSON 评分）并返回 Judge 实例。"""
-    judge_client = ctx.providers.get_mock(rules=[
-        MockRule(match="评分标准", reply='{"score": %g, "reasoning": "裁判评估通过"}' % score)])  # %g 去除多余小数位，score 为整数时输出简洁
+    """构造裁判：mock 态脚本固定评分（隔离裁判噪声验证链路），真实态用真实裁判。"""
+    judge_client = scripted_or_real(ctx, rules=[
+        MockRule(match="评分标准",
+                 reply='{"score": %g, "reasoning": "裁判评估通过"}' % score)])
     return Judge(judge_client)
 
 

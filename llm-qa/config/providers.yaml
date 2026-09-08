@@ -20,6 +20,19 @@ openai:
     prompt_per_1m_usd: 0.15
     completion_per_1m_usd: 0.60
 
+# DeepSeek（OpenAI 兼容协议）。base_url 见 https://api-docs.deepseek.com/
+# model 可用 deepseek-v4-flash（便宜/快/支持工具调用）或 deepseek-v4-pro。
+deepseek:
+  kind: openai_compat
+  base_url: https://api.deepseek.com
+  api_key_env: DEEPSEEK_API_KEY
+  model: deepseek-v4-flash
+  timeout_seconds: 120
+  max_retries: 2
+  pricing:
+    prompt_per_1m_usd: 0.22      # 输入（cache miss，非高峰）；高峰为 0.44
+    completion_per_1m_usd: 0.66  # 输出（非高峰）；高峰为 1.32
+
 # 本地自托管 vLLM / Ollama 兼容端点（OpenAI 协议）
 local_vllm:
   kind: openai_compat

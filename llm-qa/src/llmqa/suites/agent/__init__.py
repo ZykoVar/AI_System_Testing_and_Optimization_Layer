@@ -11,6 +11,7 @@
 """
 # 显式导入各子模块以触发 @test 装饰器注册：discover 只 import 包本身，需在此级联导入
 from . import (
+    behavior_dsl,
     budget_guardrails,
     loop_detection,
     multi_step_planning,
@@ -21,6 +22,7 @@ from . import (
 )
 
 __all__ = [
+    "behavior_dsl",
     "budget_guardrails",
     "loop_detection",
     "multi_step_planning",

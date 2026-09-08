@@ -134,14 +134,15 @@ def run() -> int:
     # 演示固定并发 4、不重试，保证输出确定性且秒级完成
     runner = TestRunner(ctx_factory, concurrency=4, retries_on_error=0,
                         default_timeout=30, progress=reporter.on_case_done)
-    report = runner.run_sync(cases, provider_name=settings.default_provider)
+    # 运行 + 同循环关闭连接池（跨循环关闭会崩）
+    from llmqa.core.runner import run_and_close_sync
+    report = run_and_close_sync(runner, cases, pool, settings.default_provider)
     # 演示运行同样挂溯源，保持"任何运行都可追溯"的不变式
     from llmqa.core.provenance import attach_provenance
     attach_provenance(report, root, prompts, datasets,
                       settings=settings, provider_name=settings.default_provider,
                       cases=cases)
     files = reporter.finalize(report)
-    pool.close_sync()
     print()
     print(report.summary_text())
     print("报告: " + ", ".join(f"{k} → {v}" for k, v in files.items()))

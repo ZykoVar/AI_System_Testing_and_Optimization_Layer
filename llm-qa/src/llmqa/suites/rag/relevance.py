@@ -42,12 +42,15 @@ async def answer_relevance(ctx: TestContext) -> None:
     client = scripted_or_real(ctx, rules=[MockRule(match=".*", reply="单笔订单满 199 元即可包邮。[资料1]")])
     harness = RAGHarness(corpus, client, prompt_manager=ctx.prompts, prompt_id="rag/answer")
     resp = await harness.answer("多少钱可以免运费？", k=4)
-    judge_client = ctx.providers.get_mock(rules=[
+    # 裁判双态：mock 态脚本固定 9 分，真实态由真实裁判打分（避免绿色假象）
+    judge_client = scripted_or_real(ctx, rules=[
         MockRule(match="评分标准", reply='{"score": 9, "reasoning": "答案切题"}')])
-    await Judge(judge_client).assert_score(
+    verdict = await Judge(judge_client).assert_score(
         question="多少钱可以免运费？", answer=resp.text,
         context="单笔订单满 199 元包邮",
         criteria="答案必须直接回答免运费门槛问题", min_score=7.0)
+    ctx.record(judge_score=verdict.score)
+    ctx.add_evidence("裁判理由: " + verdict.reasoning)
 
 
 @test(id="rag-rel-003", suite="rag", name="相关性：空上下文不得硬答",

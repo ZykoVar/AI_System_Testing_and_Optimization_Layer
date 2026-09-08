@@ -96,7 +96,11 @@ def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,
         suites=suites, tags=tags, exclude_tags=exclude_tags, min_severity=min_severity)]
     if not cases:
         raise ValueError("没有匹配的用例（请检查 suite/tag/severity 过滤条件）")
-    provider_name = provider or settings.default_provider
+    # 与 CLI 相同的路由命门：显式 provider 必须注入 default_provider，
+    # 否则 A/B 两态都会静默跑成 mock
+    if provider:
+        settings.default_provider = provider
+    provider_name = settings.default_provider
 
     def make_ctx_factory(pin_version: int, tag: str):
         pm = PromptManager(root / "prompts").load()
@@ -112,14 +116,19 @@ def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,
     reporter = Reporter(root / settings.report_dir, no_color=True) if progress else None
     on_done = reporter.on_case_done if reporter else None
 
-    def one_run(pin_version: int, tag: str):
+    def one_run(pin_version: int, tag: str, close_pool: bool = False):
         ctx_factory, pm = make_ctx_factory(pin_version, tag)
         runner = TestRunner(ctx_factory,
                             concurrency=concurrency or settings.concurrency,
                             retries_on_error=settings.retries_on_error,
                             default_timeout=settings.timeout_per_test,
                             progress=on_done)
-        report = runner.run_sync(cases, provider_name=provider_name)
+        if close_pool:
+            # 最后一次运行：与运行同循环关闭连接池（跨循环关闭会崩）
+            from llmqa.core.runner import run_and_close_sync
+            report = run_and_close_sync(runner, cases, pool, provider_name)
+        else:
+            report = runner.run_sync(cases, provider_name=provider_name)
         # 挂运行溯源（git/Prompt 版本+指纹/数据集指纹/模型/用例指纹）
         from llmqa.core.provenance import attach_provenance
         attach_provenance(report, root, pm, datasets,
@@ -129,7 +138,7 @@ def run_abtest(root: Path, settings: Any, pool: Any, datasets: Any,
         return report
 
     report_a = one_run(version_a, "ab-a")
-    report_b = one_run(version_b, "ab-b")
+    report_b = one_run(version_b, "ab-b", close_pool=True)
     outcomes_a = {o.case_id: o for o in report_a.outcomes}
     outcomes_b = {o.case_id: o for o in report_b.outcomes}
     # 只对比两次运行都实际产出的用例，避免某侧缺失被误判为回归。

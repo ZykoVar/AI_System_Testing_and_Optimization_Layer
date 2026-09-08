@@ -17,6 +17,16 @@ from llmqa.assertors.text import (
     language_ratio,
     text_similarity,
 )
+from llmqa.assertors.trajectory import (
+    assert_max_cost,
+    assert_max_steps,
+    assert_requires_approval,
+    assert_state_changed,
+    assert_tool_args,
+    assert_tool_called,
+    assert_tool_not_called,
+    assert_tool_sequence,
+)
 
 __all__ = [
     "AssertionFailed",
@@ -38,4 +48,12 @@ __all__ = [
     "parse_json",
     "text_similarity",
     "validate",
+    "assert_tool_called",
+    "assert_tool_not_called",
+    "assert_tool_sequence",
+    "assert_max_steps",
+    "assert_max_cost",
+    "assert_tool_args",
+    "assert_requires_approval",
+    "assert_state_changed",
 ]

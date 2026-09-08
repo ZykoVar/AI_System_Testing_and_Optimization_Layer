@@ -6,6 +6,16 @@ from llmqa.clients.mock import MockClient, MockRule
 from llmqa.config import ProviderConfig, Settings
 
 
+def require_api_key(provider: ProviderConfig) -> None:
+    """密钥前置检查：配置声明了 api_key_env 但环境变量为空时，直接抛可操作的
+    LLMError（而不是等远端返回模糊的 401）。"""
+    if provider.api_key_env and not provider.api_key:
+        raise LLMError(
+            provider.name,
+            "环境变量 {} 未设置或为空。请先设置：$env:{} = \"sk-...\"（当前会话内有效）".format(
+                provider.api_key_env, provider.api_key_env))
+
+
 def build_client(provider: ProviderConfig) -> LLMClient:
     """按 Provider 配置的 kind 构建对应客户端；未知 kind 抛 LLMError。"""
     kind = provider.kind
@@ -16,6 +26,7 @@ def build_client(provider: ProviderConfig) -> LLMClient:
         from llmqa.clients.openai_compat import OpenAICompatClient
         if not provider.base_url:
             raise LLMError(provider.name, "openai_compat 需要配置 base_url")
+        require_api_key(provider)   # 密钥缺失在发请求前暴露，避免模糊 401
         return OpenAICompatClient(
             provider.name, provider.resolve_model(), provider.base_url,
             api_key=provider.api_key, timeout_seconds=provider.timeout_seconds,
@@ -24,6 +35,7 @@ def build_client(provider: ProviderConfig) -> LLMClient:
         )
     if kind == "anthropic":
         from llmqa.clients.anthropic import AnthropicClient  # 同上，延迟导入
+        require_api_key(provider)
         return AnthropicClient(
             provider.name, provider.resolve_model(), api_key=provider.api_key,
             base_url=provider.base_url or "https://api.anthropic.com",
@@ -79,22 +91,12 @@ class ClientPool:
     async def close(self) -> None:
         """关闭池内全部真实 Provider 连接的底层客户端（httpx 连接池等）。
 
-        运行生命周期结束时应调用：连接池按"每次运行"而非"每个进程"释放，
-        避免长驻进程（CI 常驻 runner、服务化场景）泄漏连接。
+        必须在"创建这些客户端的同一事件循环"内调用（httpx 传输绑定循环，
+        跨循环关闭会抛 Event loop is closed）；CLI/abtest/demo 一律通过
+        core.runner.run_and_close_sync 在运行循环内关闭。
         """
         for client in self._cache.values():
             closer = getattr(client, "aclose", None)
             if closer is not None:
                 await closer()
-        self._cache.clear()
-
-    def close_sync(self) -> None:
-        """同步关闭（无运行中事件循环时使用，CLI 收尾路径）。"""
-        import asyncio
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            asyncio.run(self.close())
-            return
-        # 已有事件循环时无法 asyncio.run，仅清缓存（适配器由宿主循环负责）
         self._cache.clear()

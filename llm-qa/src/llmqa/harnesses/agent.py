@@ -112,6 +112,44 @@ class AgentTrace(BaseModel):
         """按调用顺序收集全部工具名，便于断言"调用了哪些工具"。"""
         return [tc.name for step in self.steps for tc in step.tool_calls]
 
+    def to_trajectory(self, agent_id: str = "native") -> "AgentTrajectory":
+        """把本地执行轨迹归一为平台无关的 AgentTrajectory（统一轨迹模型）。
+
+        外部平台轨迹经 TrajectoryAdapter 归一后与本地轨迹同构，
+        因此行为断言 DSL（assertors/trajectory.py）对两种来源一视同仁。
+        """
+        from llmqa.trajectory import AgentTrajectory, TrajectoryStep
+
+        steps: list[TrajectoryStep] = []
+        observations = {r.tool_call_id: r.output for r in self.tool_results}
+        index = 0
+        for step in self.steps:
+            if step.tool_calls:
+                index += 1
+                steps.append(TrajectoryStep(
+                    index=index, kind="llm_call", content=step.assistant_text))
+                for tc in step.tool_calls:
+                    index += 1
+                    steps.append(TrajectoryStep(
+                        index=index, kind="tool_call", tool_call=tc))
+                    if tc.id in observations:
+                        index += 1
+                        steps.append(TrajectoryStep(
+                            index=index, kind="observation",
+                            observation=observations[tc.id]))
+            else:
+                index += 1
+                steps.append(TrajectoryStep(
+                    index=index, kind="final", content=step.assistant_text))
+        finish = self.abort_reason or "completed"
+        return AgentTrajectory(
+            agent_id=agent_id, task=self.task, steps=steps,
+            finish_reason=finish,
+            total_tokens=self.total_usage.total_tokens,
+            total_cost_usd=0.0,   # native 轨迹无真实成本；外部平台接入后才有
+            source="native",
+        )
+
 
 class AgentHarness:
     """受控 Agent 执行环：提供工具注册、循环/预算/白名单护栏与轨迹记录。"""

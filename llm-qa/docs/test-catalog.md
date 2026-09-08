@@ -3,9 +3,9 @@
 > 本文件由 scripts/gen_catalog.py 从用例注册表自动生成，请勿手改；
 > 修改用例后运行 python scripts/gen_catalog.py 同步。
 
-共 **136** 个用例，覆盖 5 个套件。
+共 **141** 个用例，覆盖 5 个套件。
 
-## Agent（20 例）
+## Agent（25 例）
 
 工具选择与参数、多步规划、状态记忆、循环检测、预算与工具护栏
 
@@ -14,6 +14,11 @@
 | agt-arg-001 | 必填参数正确传递 | HIGH | smoke,tool-arguments |
 | agt-arg-002 | 参数类型正确（integer） | MEDIUM | tool-arguments |
 | agt-arg-003 | 工具异常转为观测并恢复作答 | MEDIUM | tool-arguments |
+| agt-beh-001 | DSL：工具序列与步数上限 | HIGH | behavior-dsl,smoke |
+| agt-beh-002 | DSL：危险工具零容忍 | HIGH | behavior-dsl |
+| agt-beh-003 | DSL：参数校验与成本上限 | MEDIUM | behavior-dsl |
+| agt-beh-004 | DSL：敏感操作审批前置 | HIGH | behavior-dsl |
+| agt-beh-005 | DSL：状态变更断言（平台归一轨迹） | MEDIUM | behavior-dsl |
 | agt-bud-001 | 迭代预算耗尽中止 | HIGH | budget-guardrail,smoke |
 | agt-bud-002 | token 预算耗尽中止 | MEDIUM | budget-guardrail |
 | agt-bud-003 | 正常任务在预算内成功 | MEDIUM | budget-guardrail |

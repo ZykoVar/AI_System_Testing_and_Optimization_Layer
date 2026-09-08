@@ -9,7 +9,13 @@
 """
 from __future__ import annotations
 
-from llmqa.assertors import assert_contains, assert_not_contains, assert_similarity
+from llmqa.assertors import (
+    Judge,
+    assert_contains,
+    assert_not_contains,
+    assert_similarity,
+    text_similarity,
+)
 from llmqa.clients import Message, MockRule, scripted_or_real
 from llmqa.core.models import Severity, TestContext
 from llmqa.core.registry import test
@@ -33,7 +39,20 @@ async def repeat_question_similar(ctx: TestContext) -> None:
     question = [Message.user("Acme 的退货政策是什么？")]
     resp1 = await client.generate(question, temperature=0.0, max_tokens=512)
     resp2 = await client.generate(question, temperature=0.0, max_tokens=512)
-    assert_similarity(resp1.text, resp2.text, min_score=0.8)  # SequenceMatcher 字符相似度：0.8 容忍措辞波动、捕获内容漂移
+    similarity = text_similarity(resp1.text, resp2.text)
+    ctx.record(similarity=round(similarity, 4))
+    if similarity < 0.8:
+        # 真实 API 下 temperature=0 不保证两次独立调用逐字一致（推理模型尤甚），
+        # 字面相似度 miss 时用 Judge 判"两次回答语义一致"兜底
+        verdict = await Judge(ctx.client()).assert_score(
+            question="Acme 的退货政策是什么？",
+            answer=("回答A: " + resp1.text + "\n回答B: " + resp2.text),
+            criteria="判断两次回答是否表达相同事实（允许措辞差异）；一致给 8 分以上，矛盾给低分",
+            min_score=7.0)
+        ctx.record(consistency_mode="semantic", judge_score=verdict.score)
+        ctx.add_evidence("裁判理由(一致性语义兜底): " + verdict.reasoning)
+    else:
+        ctx.record(consistency_mode="deterministic")
 
 
 @test(

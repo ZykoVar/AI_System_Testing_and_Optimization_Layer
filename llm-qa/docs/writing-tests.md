@@ -93,6 +93,21 @@ verdict = await judge.assert_score(question=q, answer=resp.text, criteria="...",
 > 注意：托管模板与内置 Prompt 均要求裁判输出一行 JSON
 > `{"score": <分>, "reasoning": "<理由>"}`。
 
+**裁判双态约定（避免绿色假象）**：裁判客户端一律用 `scripted_or_real` 构造——
+mock 态脚本固定评分（隔离裁判噪声、验证链路），真实态由真实裁判打分。
+**禁止**用 `ctx.providers.get_mock` 构造裁判后跑真实 Provider——
+那样"PASS"只证明调用成功，不证明答案质量（真实环境首跑已踩坑）。
+
+**PASS 也要有信号**：用 `ctx.record(**metrics)` 与 `ctx.add_evidence(text)`
+记录判定数据（judge 分数/相似度/延迟分位/裁判理由），
+PASS 用例的 metrics/evidence 同样落盘——真实运行没有这些就只剩"通过"二字： 
+
+```python
+verdict = await judge.assert_score(...)
+ctx.record(judge_score=verdict.score, judge_passes=verdict.passes)
+ctx.add_evidence("裁判理由: " + verdict.reasoning)
+```
+
 ### 4.1 数据驱动用例（列表类测试的首选）
 
 同类用例（注入/越狱/有害内容等"一条载荷一个用例"）用 data_driven 注册，

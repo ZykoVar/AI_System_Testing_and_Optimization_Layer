@@ -1,6 +1,40 @@
 
 # 架构设计
 
+## 0. 战略定位（先于分层）
+
+llm_learn 是 **AI System Testing & Optimization Layer**：
+外部平台负责"能力"（模型网关/指标/轨迹/监控），本项目负责"工程体系"
+（统一测试模型、行为规定、回归、优化闭环、质量门禁）。
+
+```text
+                         llm_learn
+                             │
+                ┌────────────┴────────────┐
+                │                         │
+          LLM Evaluation             Agent Testing
+                │                         │
+        ┌───────┴───────┐         ┌───────┴───────┐
+        │               │         │               │
+   External Eval     Native     External Trace  Native
+    Providers         Eval      (LangSmith/      Harness
+   (Ragas/Judge)                 Langfuse/...)
+        │               │         │               │
+        └───────┬───────┘         └───────┬───────┘
+                │                         │
+                └──────────┬──────────────┘
+                           ▼
+               Unified Outcome（TestOutcome / AgentTrajectory）
+                           │
+                     Regression（compare + 指标策略 + 基线）
+                           │
+                       Quality Gate
+```
+
+核心资产：**统一测试模型（TestOutcome）+ 轨迹统一模型（AgentTrajectory）+
+行为断言 DSL + 回归语义**；接入点：`llmqa/ext/` 的四个 Adapter 协议
+（LLM 客户端 / Judge 后端 / 检索后端 / 轨迹归一）。
+
 ## 1. 分层视图
 
 llm-qa 采用四层架构，上层依赖下层稳定接口，下层不感知上层：

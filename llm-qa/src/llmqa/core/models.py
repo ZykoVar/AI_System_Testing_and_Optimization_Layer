@@ -71,6 +71,19 @@ class TestContext(BaseModel):
     providers: Any          # ClientPool
     prompts: Any            # PromptManager
     datasets: Any           # DatasetManager
+    record_metrics: dict = Field(default_factory=dict)    # 用例主动记录的判定数据（PASS 也落盘）
+    record_evidence: list = Field(default_factory=list)   # 用例主动记录的证据（PASS 也落盘）
+
+    def record(self, **metrics) -> None:
+        """记录判定数据（judge 分数/相似度/延迟分位等）——PASS 用例的信号来源。
+
+        用法：verdict = await judge.assert_score(...); ctx.record(judge_score=verdict.score)
+        """
+        self.record_metrics.update(metrics)
+
+    def add_evidence(self, text: str) -> None:
+        """记录证据文本（裁判理由/关键片段等），PASS 用例同样可见。"""
+        self.record_evidence.append(text)
 
     def client(self, name: str | None = None):
         """按名称从连接池获取客户端；不传名则取默认 Provider。"""

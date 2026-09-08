@@ -11,7 +11,7 @@
 """
 from __future__ import annotations
 
-from llmqa.assertors import assert_contains
+from llmqa.assertors import assert_contains, assert_tool_called, assert_tool_sequence
 from llmqa.clients import MockRule, scripted_or_real
 from llmqa.core.models import Severity, TestContext
 from llmqa.core.registry import test
@@ -68,7 +68,10 @@ async def weather_selects_get_weather(ctx: TestContext) -> None:
                            system_prompt="你是助手，需要实时数据时调用工具。",
                            max_iterations=4)
     trace = await harness.run("北京今天天气怎么样？")
-    assert trace.tool_call_names == ["get_weather"], f"工具选择错误: {trace.tool_call_names}"
+    # 统一轨迹模型 + 行为断言 DSL：与外部平台（LangSmith/Langfuse 等）归一轨迹同构
+    traj = trace.to_trajectory()
+    assert_tool_called(traj, "get_weather")
+    assert_tool_sequence(traj, ["get_weather"], strict=True)
     assert_contains(trace.final_answer, "晴")
 
 

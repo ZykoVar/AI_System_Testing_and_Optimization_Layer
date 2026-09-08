@@ -114,6 +114,10 @@ class TestRunner:
                     ctx = self.ctx_factory()
                     await asyncio.wait_for(case.fn(ctx), timeout=timeout)
                     verdict, message = Verdict.PASS, "通过"
+                    # PASS 用例的判定数据（ctx.record 记录）同样落盘，
+                    # 让真实运行沉淀质量信号而非只有"通过"二字
+                    metrics = dict(ctx.record_metrics)
+                    evidence = list(ctx.record_evidence)
                     break
                 except SkipTest as e:
                     verdict, message, skip_reason = Verdict.SKIP, str(e), "intentional"
@@ -210,3 +214,19 @@ class TestRunner:
             # 无运行中事件循环：创建新循环同步执行（适合 CLI / 脚本入口）。
             return asyncio.run(self.run_all(cases, provider_name=provider_name))
         raise RuntimeError("TestRunner.run_sync 不能在已有事件循环中调用，请使用 run_all")
+
+
+def run_and_close_sync(runner: TestRunner, cases: list[TestCaseDef],
+                       pool=None, provider_name: str = "default") -> TestReport:
+    """运行用例并在**同一事件循环内**关闭 Provider 连接池。
+
+    正确性说明：httpx 客户端的 anyio 传输绑定其创建时的事件循环；
+    若在 runner 的循环结束（asyncio.run 返回）后再开新循环关闭，
+    会抛 RuntimeError: Event loop is closed。因此关闭必须与运行同循环。
+    """
+    async def _go() -> TestReport:
+        report = await runner.run_all(cases, provider_name=provider_name)
+        if pool is not None:
+            await pool.close()
+        return report
+    return asyncio.run(_go())
