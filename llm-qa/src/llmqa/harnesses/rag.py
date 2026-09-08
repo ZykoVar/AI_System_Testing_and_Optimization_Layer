@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Any
+from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -110,13 +110,23 @@ class RAGCorpus:
         return chunks
 
 
+class Retriever(Protocol):
+    """可插拔检索后端协议：生产环境接真实向量库（Chroma/Qdrant/LlamaIndex），
+    离线 CI 用内置 BM25-lite。实现只需满足 retrieve(query, k) -> RetrievalResult。"""
+
+    async def retrieve(self, query: str, k: int) -> RetrievalResult:
+        ...
+
+
 class RAGHarness:
     """检索 + 生成双阶段管线，评估口径统一。"""
 
     def __init__(self, corpus: RAGCorpus | list[dict], client: LLMClient, *,
                  chunk_size: int = 400, overlap: int = 80, top_k: int = 4,
-                 prompt_manager=None, prompt_id: str = "rag/answer"):
-        """构造即切片并建索引；prompt_manager 非空时走版本化模板，否则用内置默认提示词。"""
+                 prompt_manager=None, prompt_id: str = "rag/answer",
+                 retriever: Retriever | None = None):
+        """构造即切片并建索引；retriever 非空时检索走外部后端（如真实向量库），
+        否则用内置 BM25-lite（离线可复现）；prompt_manager 非空时走版本化模板。"""
         if isinstance(corpus, list):
             corpus = RAGCorpus.from_dicts(corpus)
         self.corpus = corpus
@@ -126,6 +136,7 @@ class RAGHarness:
         self.top_k = top_k
         self.prompt_manager = prompt_manager
         self.prompt_id = prompt_id
+        self.retriever = retriever
         self.chunks: list[Chunk] = corpus.chunk(chunk_size, overlap)
         self._df: dict[str, int] = {}
         self._index()
@@ -160,7 +171,9 @@ class RAGHarness:
         return scores
 
     async def retrieve(self, query: str, k: int | None = None) -> RetrievalResult:
-        """检索 top-k 块；仅返回分数大于 0 的命中（无词项重叠时为空结果）。"""
+        """检索 top-k 块；配置了外部 retriever 时委托之，否则走内置 BM25-lite。"""
+        if self.retriever is not None:
+            return await self.retriever.retrieve(query, k or self.top_k)
         scores = self._bm25_scores(tokenize(query))
         order = sorted(range(len(scores)), key=lambda i: -scores[i])[: (k or self.top_k)]
         return RetrievalResult(
@@ -190,17 +203,18 @@ class RAGHarness:
         return await self.client.generate(messages, temperature=temperature, max_tokens=max_tokens)
 
     # ---------- 检索质量评估 ----------
-    def evaluate_retrieval(self, queries: list[RetrievalQuery],
-                           k: int | None = None) -> RetrievalMetrics:
-        """对一组标注样例计算 recall@k / hit@k / MRR / precision@k 的平均值。"""
+    async def evaluate_retrieval(self, queries: list[RetrievalQuery],
+                                 k: int | None = None) -> RetrievalMetrics:
+        """对一组标注样例计算 recall@k / hit@k / MRR / precision@k 的平均值。
+
+        走 self.retrieve()：内置 BM25 或外部检索后端都能参与同一套评估口径。
+        """
         per_query: list[dict[str, Any]] = []
         recalls, hits, mrrs, precs = [], [], [], []
         for q in queries:
-            # 同步评估（纯计算，不需要事件循环）
-            scores = self._bm25_scores(tokenize(q.query))
-            order = sorted(range(len(scores)), key=lambda i: -scores[i])[: (k or self.top_k)]
-            retrieved_docs = [self.chunks[i].doc_id for i in order if scores[i] > 0]
-            retrieved_chunks = [self.chunks[i].chunk_id for i in order if scores[i] > 0]
+            result = await self.retrieve(q.query, k or self.top_k)
+            retrieved_docs = [c.doc_id for c in result.chunks]
+            retrieved_chunks = [c.chunk_id for c in result.chunks]
             rel_docs = set(q.relevant_doc_ids)
             # 未逐块标注时回退：整篇相关文档的所有块都视为相关。
             rel_chunks = set(q.relevant_chunk_ids) or {

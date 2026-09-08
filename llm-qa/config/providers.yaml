@@ -35,3 +35,11 @@ anthropic:
   model: claude-3-5-sonnet-latest
   timeout_seconds: 60
   max_retries: 2
+
+# 成熟工具替代点：LiteLLM 统一网关（100+ 模型/自动重试/成本核算）。
+# 启用：pip install -e ".[ext]" 后取消注释；
+# model 可用 "provider/model" 形式（如 openai/gpt-4o-mini、anthropic/claude-3-5-sonnet）。
+# litellm:
+#   kind: litellm
+#   model: openai/gpt-4o-mini
+#   api_key_env: OPENAI_API_KEY

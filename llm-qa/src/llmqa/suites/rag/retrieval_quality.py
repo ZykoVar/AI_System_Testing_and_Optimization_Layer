@@ -32,7 +32,7 @@ def _build(ctx: TestContext):
 async def retrieval_mean_recall(ctx: TestContext) -> None:
     """断言 evaluate_retrieval(k=4) 的 mean_recall_at_k 不低于 0.8。"""
     harness, queries = _build(ctx)
-    m = harness.evaluate_retrieval(queries, k=4)
+    m = await harness.evaluate_retrieval(queries, k=4)
     if m.mean_recall_at_k < 0.8:
         raise AssertionFailed(
             f"平均召回率 {m.mean_recall_at_k:.2f} 低于阈值 0.8",
@@ -45,7 +45,7 @@ async def retrieval_mean_recall(ctx: TestContext) -> None:
 async def retrieval_mean_hit(ctx: TestContext) -> None:
     """断言 evaluate_retrieval(k=4) 的 mean_hit_at_k 不低于 0.8。"""
     harness, queries = _build(ctx)
-    m = harness.evaluate_retrieval(queries, k=4)
+    m = await harness.evaluate_retrieval(queries, k=4)
     if m.mean_hit_at_k < 0.8:
         raise AssertionFailed(
             f"平均命中率 {m.mean_hit_at_k:.2f} 低于阈值 0.8",
@@ -58,7 +58,7 @@ async def retrieval_mean_hit(ctx: TestContext) -> None:
 async def retrieval_mean_mrr(ctx: TestContext) -> None:
     """断言 evaluate_retrieval(k=4) 的 mean_mrr 不低于 0.7。"""
     harness, queries = _build(ctx)
-    m = harness.evaluate_retrieval(queries, k=4)
+    m = await harness.evaluate_retrieval(queries, k=4)
     if m.mean_mrr < 0.7:
         raise AssertionFailed(
             f"平均 MRR {m.mean_mrr:.2f} 低于阈值 0.7",
@@ -74,7 +74,7 @@ async def retrieval_mean_precision(ctx: TestContext) -> None:
     说明：单相关文档查询在 k=4 下精确率上限为 1/4，故 0.5 目标无法用词法检索达到。
     """
     harness, queries = _build(ctx)
-    m = harness.evaluate_retrieval(queries, k=4)
+    m = await harness.evaluate_retrieval(queries, k=4)
     if m.mean_precision_at_k < 0.2:  # 单相关文档查询在 k=4 下精确率上限 1/4，故阈值降至 0.2（见模块 docstring）
         raise AssertionFailed(
             f"平均精确率 {m.mean_precision_at_k:.2f} 低于阈值 0.2",
@@ -87,7 +87,7 @@ async def retrieval_mean_precision(ctx: TestContext) -> None:
 async def retrieval_cross_doc_recall(ctx: TestContext) -> None:
     """断言 rq-007（退货+保修）能同时召回 doc-return 与 doc-warranty。"""
     harness, queries = _build(ctx)
-    m = harness.evaluate_retrieval(queries, k=4)
+    m = await harness.evaluate_retrieval(queries, k=4)
     pq = next(p for p in m.per_query if p["id"] == "rq-007")  # per_query 逐查询给出指标，用 next 取跨文档查询 rq-007
     if pq["recall_at_k"] != 1.0:  # 跨文档查询要求两个相关文档全部命中，必须严格等于 1.0 而非 ≥
         raise AssertionFailed(

@@ -94,11 +94,22 @@ llmqa run --provider anthropic --suite llm
 > 注意：Anthropic 适配器暂不支持 function calling，Agent 套件请用
 > OpenAI 兼容 Provider 或 Mock。
 
-### 4.3 新增 Provider
+### 4.3 新增 Provider 与成熟工具后端
 
 编辑 `config/providers.yaml` 增加配置块即可（`kind` 支持
-`mock / openai_compat / anthropic`）；自定义协议请实现
+`mock / openai_compat / anthropic / litellm`）；自定义协议请实现
 `LLMClient` 并在 `clients/factory.py` 注册。
+
+**与成熟评测工具协作**（`pip install -e ".[ext]"` 激活，全部懒加载）：
+
+| 场景 | 接入方式 |
+| --- | --- |
+| 统一模型网关（100+ 模型/重试/成本） | `kind: litellm`（LiteLLM 替代手写单家适配器） |
+| Ragas 指标当裁判 | `Judge(client, backend=RagasJudgeBackend(...))`（判定语义仍归本项目） |
+| 真实向量库检索 | `RAGHarness(corpus, client, retriever=我的检索器)`（离线 CI 保留 BM25） |
+| 外部规模压测 | k6 / locust（`core/load.py` 仅做套件内嵌压测，见性能文档） |
+
+替代原则：成熟工具当"引擎"，回归语义（基线/容差/门禁/溯源）永远归本项目。
 
 ## 5. 双态运行：Mock 与真实模型的一致性
 

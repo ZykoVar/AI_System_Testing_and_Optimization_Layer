@@ -40,10 +40,30 @@ def test_retrieval_metrics():
         RetrievalQuery(id="q3", query="包邮门槛", relevant_doc_ids=["d3"]),
     ]
     # 三个查询的正确答案都在 top-2 内，因此召回/命中/MRR 全为 1.0
-    metrics = harness.evaluate_retrieval(queries, k=2)
+    metrics = asyncio.run(harness.evaluate_retrieval(queries, k=2))
     assert metrics.mean_recall_at_k == 1.0
     assert metrics.mean_hit_at_k == 1.0
     assert metrics.mean_mrr == 1.0
+
+
+def test_external_retriever_backend():
+    # 可插拔检索后端：harness 委托外部 retriever，评估口径不变
+    from llmqa.harnesses import Chunk, RetrievalResult
+
+    class FakeVectorStore:
+        async def retrieve(self, query, k):
+            return RetrievalResult(
+                query=query,
+                chunks=[Chunk(chunk_id="d1#0", doc_id="d1", title="退货", text="7 天退货")],
+                scores=[0.99])
+
+    harness = RAGHarness(DOCS, MockClient(), retriever=FakeVectorStore())
+    result = asyncio.run(harness.retrieve("退货政策", k=1))
+    assert result.chunks[0].doc_id == "d1"
+    # 评估走同一委托路径
+    metrics = asyncio.run(harness.evaluate_retrieval(
+        [RetrievalQuery(id="q", query="x", relevant_doc_ids=["d1"])], k=1))
+    assert metrics.mean_recall_at_k == 1.0
 
 
 def test_answer_uses_rag_prompt():

@@ -29,6 +29,11 @@ def build_client(provider: ProviderConfig) -> LLMClient:
             base_url=provider.base_url or "https://api.anthropic.com",
             timeout_seconds=provider.timeout_seconds, max_retries=provider.max_retries,
         )
+    if kind == "litellm":
+        # 成熟工具替代点：LiteLLM 统一网关（100+ 模型/重试/成本），见 llmqa.ext
+        from llmqa.ext.litellm_backend import LiteLLMClient
+        return LiteLLMClient(
+            provider.name, provider.resolve_model(), api_key=provider.api_key)
     raise LLMError(provider.name, f"未知 Provider kind: {kind}")
 
 

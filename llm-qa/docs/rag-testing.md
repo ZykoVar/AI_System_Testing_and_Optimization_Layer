@@ -113,8 +113,23 @@ assert_contains(resp.text, "无法回答", "未提及", "不知道", any_of=True
 
 ## 7. 扩展点
 
-- **换真实检索后端**：子类化/实现 `retrieve()`（向量库、混合检索），
-  评估接口不变；
+- **换真实检索后端（可插拔 Retriever 协议）**：实现 `async retrieve(query, k) -> RetrievalResult`
+  并传入 `RAGHarness(corpus, client, retriever=...)`，检索与评估自动委托外部后端，
+  离线 CI 仍保留内置 BM25-lite。示例（Chroma/LlamaIndex 集成）：
+
+```python
+class VectorStoreRetriever:
+    def __init__(self, index): self.index = index          # 生产向量库索引
+    async def retrieve(self, query, k):
+        hits = await self.index.asimilarity_search_with_score(query, k=k)
+        return RetrievalResult(query=query,
+            chunks=[Chunk(chunk_id=m.id, doc_id=m.metadata["doc_id"], text=m.page_content)
+                    for m, _ in hits],
+            scores=[round(s, 4) for _, s in hits])
+
+harness = RAGHarness(corpus, client, retriever=VectorStoreRetriever(index))
+```
+
 - **换嵌入模型**：在 `retrieve` 前后插入 embedding 打分融合；
 - **新语料**：向 `datasets/rag/corpus.yaml` 增文档，同步补 queries 标注；
 - **新指标**：nDCG、MAP 可在 `evaluate_retrieval` 的 `per_query` 数据上计算。

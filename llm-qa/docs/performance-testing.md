@@ -18,6 +18,9 @@ LLM 服务性能三要素：**延迟（体验）、吞吐（容量）、成本�
 
 ## 2. 负载生成器
 
+> **外部规模压测**：套件内嵌的 run_load 面向"用例内统计"；对生产规模的
+> 分布式压测建议接 k6 / locust（成熟工具），本项目不做重复建设。
+
 ```python
 from llmqa.core.load import run_load, run_ramp
 from llmqa.clients import Message

@@ -135,6 +135,12 @@ version 是命名约定，content_hash 才是防篡改依据；配合命名基�
 ## 5. 扩展点
 
 - **新 Provider**：实现 `LLMClient` + 在 `clients/factory.py` 注册 kind。
+- **成熟工具后端**（`llmqa/ext/`，全部懒加载，不装则离线 CI 不受影响；
+  `pip install -e ".[ext]"` 激活）：
+  - LiteLLM 统一网关：`providers.yaml` 设 `kind: litellm`（100+ 模型/重试/成本）；
+  - Ragas 指标：实现 `JudgeBackend` 协议接入为裁判后端（投票/证据/门禁仍归 Judge）；
+  - 外部检索后端：实现 `Retriever` 协议传入 `RAGHarness(retriever=...)`
+    （生产接 Chroma/Qdrant/LlamaIndex，离线 CI 保留 BM25-lite）。
 - **新断言**：在 `assertors/` 添加函数或 Judge 维度。
 - **新套件**：新建包 `suites/<name>/`，在 `__init__.py` 导入模块，
   把包名加入 `DEFAULT_PACKAGES`。

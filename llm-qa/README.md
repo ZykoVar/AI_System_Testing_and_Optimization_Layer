@@ -4,7 +4,7 @@
 把 LLM/Agent 的全部测试流程沉淀为可复现、可回归、可上 CI 的代码资产：
 **Prompt 管理 · LLM 质量测试 · RAG 专项测试 · Agent 测试 · 安全红队测试 · 性能测试**。
 
-- 无厂商锁定：统一 `LLMClient` 抽象，同一批用例可在 Mock / OpenAI 兼容（OpenAI、DeepSeek、vLLM、Ollama）/ Anthropic 之间一键切换
+- 无厂商锁定：统一 `LLMClient` 抽象，同一批用例可在 Mock / OpenAI 兼容 / Anthropic / LiteLLM（100+ 模型）之间一键切换；成熟评测工具（Ragas 指标、真实向量库检索）经 `llmqa/ext` 可插拔后端接入（`pip install -e ".[ext]"`）
 - 离线可跑：内置确定性 Mock Provider 与脚本化规则，CI 冒烟零成本、零密钥
 - 企业级工程：版本化 Prompt 库、LLM-as-Judge、多格式报告（JSON/Markdown/HTML/JUnit）、失败分级与门禁退出码
 - 安全第一：内置提示注入/越狱/金丝雀泄露/数据外泄红队用例与 Prompt 发布前扫描
@@ -78,12 +78,13 @@ llm-qa/
 ├── datasets/               # 测试数据集（golden QA、对抗样本、PII 金丝雀、RAG 语料、压测载荷）
 ├── src/llmqa/
 │   ├── config.py           # Pydantic 配置模型，支持环境变量展开
-│   ├── clients/            # LLMClient 抽象 + mock/openai_compat/anthropic + 连接池
-│   ├── core/               # 用例模型、注册表、运行器、报告器、指标、负载生成器
-│   ├── assertors/          # 确定性断言 + JSON Schema + LLM-as-Judge
-│   ├── prompts/            # PromptManager + PromptScanner（注入扫描）
+│   ├── clients/            # LLMClient 抽象 + mock/openai_compat/anthropic/litellm + 连接池
+│   ├── core/               # 用例模型、注册表、运行器、报告器、对比引擎、溯源、指标
+│   ├── assertors/          # 确定性断言 + JSON Schema + LLM-as-Judge（后端可插拔）
+│   ├── prompts/            # PromptManager + PromptScanner（注入扫描）+ A/B 测试
 │   ├── datasets/           # 数据集加载器（YAML/JSON/CSV）
-│   ├── harnesses/          # RAGHarness / AgentHarness
+│   ├── harnesses/          # RAGHarness（Retriever 可插拔）/ AgentHarness
+│   ├── ext/                # 成熟工具适配层（LiteLLM/Ragas，懒加载，pip install -e ".[ext]"）
 │   ├── suites/             # 五大内置测试套件（llm/rag/agent/security/performance）
 │   ├── demo.py             # 内置演示套件
 │   └── cli.py              # llmqa 命令行
