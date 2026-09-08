@@ -30,16 +30,24 @@ L3 内部是**双门禁闭环**（workflow 与本文档一一对应）：
 ```text
 llmqa run --provider openai ... --soft      # 执行：退出码归属交给门禁步骤
   ↓ python scripts/gate.py reports           # 严重级门禁：CRITICAL/HIGH 拦截
-  ↓ llmqa report baseline-ensure ...         # 基线引导：首跑自动登记，此后沿用已提交基线
-  ↓ llmqa report compare --baseline ...      # 回归门禁：1=回归、2=基线不可对比
+  ↓ llmqa report compare --baseline ...      # 回归门禁：1=回归、2=基线不可对比/缺失
   ↓ publish / block
+```
+
+**基线语义（P0.5 修正）**：基线是版本化测试资产，**必须预先由人工登记并提交**。
+CI 不自动生成基线——nightly 发现 `reports/baselines/production.json` 缺失时，
+compare 以退出码 2 明确失败并打印登记指引；首次接入时执行一次：
+
+```powershell
+llmqa report baseline-set <run_id> --name production
+git add reports/baselines/ && git commit -m "test(baseline): 登记 production 回归基线"
 ```
 
 要点：
 - L0/L1/L2 零成本、零密钥，任何 PR 都会跑；
 - L3 只在 `schedule`（每夜）或 `workflow_dispatch`（手动发布前）运行；
 - 固定 `TZ: UTC` 与 `PYTHONIOENCODING: utf-8`，报告时间戳跨环境可对齐；
-- 基线是测试资产：`reports/baselines/` 已加入 .gitignore 豁免，随仓库提交共享；
+- `reports/baselines/` 已加入 .gitignore 豁免，随仓库提交共享；
 - 报告 artifacts：`reports/` 整个目录上传（含 baselines/ 与 compare/），保留 30 天。
 
 ### 2.1 退出码归属（谁决定 job 成败）

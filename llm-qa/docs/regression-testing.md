@@ -25,9 +25,15 @@ llmqa report compare --baseline --baseline-name production
 
 基线文件 `reports/baselines/<name>.json` 为富元数据：
 git commit、Prompt 版本+内容哈希、数据集指纹、创建人与时间——
-可随仓库提交实现"团队共享基线"。
+随仓库提交实现"团队共享基线"（`reports/baselines/` 已在 .gitignore 豁免）。
 
-推荐工作流：发布窗口全绿 → 登记基线 → 后续每次运行
+**基线语义（CI 强制）**：基线必须**预先由人工登记并提交**，CI 不自动生成。
+nightly 发现基线缺失时 compare 退出码 2 并打印登记指引——避免 ephemeral
+基线导致"每次自己比自己、回归门禁形同虚设"。`baseline-ensure` 仅作
+本地引导辅助（bootstrap helper），CI 不使用。
+
+推荐工作流：发布窗口全绿 → 登记基线并提交（
+`git add reports/baselines/ && git commit`）→ 后续每次运行
 `compare --baseline` → 退出码 1 拦截回归。
 
 ## 3. 对比命令
@@ -115,8 +121,10 @@ metrics:
 | --- | --- | --- |
 | 执行 | `llmqa run --soft` | 恒 0——执行结果不直接决定 job 成败 |
 | 严重级门禁 | `python scripts/gate.py reports` | 1=≥阈值失败拦截；0=通过（低于阈值仅告警） |
-| 基线引导 | `llmqa report baseline-ensure --name production` | 缺失时用最近运行登记（CI 首跑） |
-| 回归门禁 | `llmqa report compare --baseline --baseline-name production` | 1=回归；2=基线不可对比；0=通过 |
+| 回归门禁 | `llmqa report compare --baseline --baseline-name production` | 1=回归；2=基线缺失/不可对比（提示人工登记并提交）；0=通过 |
+
+前置条件：`reports/baselines/production.json` 必须已登记并提交到仓库
+（一次性人工动作；CI 不自动生成基线）。
 
 流水线编排与排期见 [ci-integration.md](ci-integration.md)；
 溯源信息（commit/哈希）让回归可定位到具体变更，见 [provenance.md](provenance.md)。

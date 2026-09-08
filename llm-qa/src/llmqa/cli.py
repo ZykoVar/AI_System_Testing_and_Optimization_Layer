@@ -107,7 +107,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p_bshow.add_argument("--name", default="production", help="基线名称")
     p_bshow.add_argument("--report-dir", default=None)
     rep_sub.add_parser("baseline-list", help="列出全部命名基线")
-    p_bens = rep_sub.add_parser("baseline-ensure", help="基线不存在时用最近一次运行引导登记（CI 首跑用）")
+    p_bens = rep_sub.add_parser("baseline-ensure",
+                                  help="本地引导辅助：基线缺失时用最近一次运行登记（CI 不使用——CI 要求基线预先提交）")
     p_bens.add_argument("--name", default="production", help="基线名称")
     p_bens.add_argument("--report-dir", default=None)
 
@@ -312,7 +313,8 @@ def _report(args: argparse.Namespace) -> int:
                                "baseline-ensure"):
         migrate_legacy()
         if args.report_action == "baseline-ensure":
-            # CI 首跑引导：基线缺失时用最近一次运行登记；已存在则无操作
+            # 本地引导辅助（bootstrap helper）：本地快速起步用；
+            # CI 不使用本命令——CI 要求基线预先登记并提交，缺失即 compare exit 2
             path = baseline_path(args.name)
             if path.exists():
                 data = json.loads(path.read_text(encoding="utf-8"))
@@ -325,7 +327,7 @@ def _report(args: argparse.Namespace) -> int:
                 print("没有可引导基线的运行记录")
                 return 2
             _write_baseline(args.name, runs[-1].parent.name)
-            print("引导基线: {} → {}（首次运行自动登记）".format(
+            print("本地引导基线: {} → {}（注意：CI 要求将此文件提交共享）".format(
                 args.name, runs[-1].parent.name))
             return 0
         if args.report_action == "baseline-list":
@@ -391,8 +393,13 @@ def _report(args: argparse.Namespace) -> int:
         migrate_legacy()
         path = baseline_path(args.baseline_name)
         if not path.exists():
-            print("基线 {} 不存在（llmqa report baseline-set <run_id> --name {}）".format(
-                args.baseline_name, args.baseline_name))
+            # 刻意设计：基线是版本化测试资产，必须由人工登记并提交，CI 不自动生成
+            print("基线 {} 不存在——这是刻意的失败：基线是版本化测试资产，".format(
+                args.baseline_name))
+            print("必须由人工登记并提交（CI 不会自动生成，避免 ephemeral 基线自己比自己）：")
+            print("  1) 选择一次全绿运行：llmqa report baseline-set <run_id> --name {}".format(
+                args.baseline_name))
+            print("  2) 提交共享：git add reports/baselines/ && git commit")
             return 2
         run_a = json.loads(path.read_text(encoding="utf-8"))["run_id"]
         if args.run_b:

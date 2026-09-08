@@ -94,9 +94,7 @@ jobs:
         run: llmqa run --provider openai --concurrency 2 --no-color --soft
       - name: 严重级门禁（CRITICAL/HIGH 拦截；MEDIUM 仅告警）
         run: python scripts/gate.py reports
-      - name: 确保回归基线（首次运行自动引导，此后沿用已提交基线）
-        run: llmqa report baseline-ensure --name production
-      - name: 回归门禁（与命名基线对比，退出码 1=回归、2=基线不可对比）
+      - name: 回归门禁（基线必须预先登记并提交；缺失即失败并提示人工登记）
         run: llmqa report compare --baseline --baseline-name production
       - name: 上传报告
         uses: actions/upload-artifact@v4
