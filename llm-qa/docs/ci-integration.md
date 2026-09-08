@@ -25,11 +25,29 @@ jobs:
   nightly:     # L3：真实模型（schedule 触发，需 OPENAI_API_KEY secret）
 ```
 
+L3 内部是**双门禁闭环**（workflow 与本文档一一对应）：
+
+```text
+llmqa run --provider openai ... --soft      # 执行：退出码归属交给门禁步骤
+  ↓ python scripts/gate.py reports           # 严重级门禁：CRITICAL/HIGH 拦截
+  ↓ llmqa report baseline-ensure ...         # 基线引导：首跑自动登记，此后沿用已提交基线
+  ↓ llmqa report compare --baseline ...      # 回归门禁：1=回归、2=基线不可对比
+  ↓ publish / block
+```
+
 要点：
 - L0/L1/L2 零成本、零密钥，任何 PR 都会跑；
 - L3 只在 `schedule`（每夜）或 `workflow_dispatch`（手动发布前）运行；
 - 固定 `TZ: UTC` 与 `PYTHONIOENCODING: utf-8`，报告时间戳跨环境可对齐；
+- 基线是测试资产：`reports/baselines/` 已加入 .gitignore 豁免，随仓库提交共享；
 - 报告 artifacts：`reports/` 整个目录上传（含 baselines/ 与 compare/），保留 30 天。
+
+### 2.1 退出码归属（谁决定 job 成败）
+
+`llmqa run` 默认语义是"任何 FAIL/ERROR → exit 1"（交互使用直观）；
+CI 中改用 `--soft` 让执行不直接决定成败，判定权交给两个门禁步骤：
+严重级由 `gate.py`（`--threshold` 控制，默认 HIGH：MEDIUM 仅告警不拦截），
+回归由 `compare`（1=回归、2=基线不可对比、0=通过）。
 
 ## 3. 本地脚本（scripts/）
 

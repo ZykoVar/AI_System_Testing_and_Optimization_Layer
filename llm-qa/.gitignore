@@ -10,6 +10,7 @@ venv/
 
 # 测试产物
 reports/
+!reports/baselines/   # 例外：基线是测试资产，随仓库提交实现团队共享
 artifacts/
 .pytest_cache/
 .coverage

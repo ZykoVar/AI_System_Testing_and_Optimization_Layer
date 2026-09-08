@@ -107,6 +107,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p_bshow.add_argument("--name", default="production", help="基线名称")
     p_bshow.add_argument("--report-dir", default=None)
     rep_sub.add_parser("baseline-list", help="列出全部命名基线")
+    p_bens = rep_sub.add_parser("baseline-ensure", help="基线不存在时用最近一次运行引导登记（CI 首跑用）")
+    p_bens.add_argument("--name", default="production", help="基线名称")
+    p_bens.add_argument("--report-dir", default=None)
 
     sub.add_parser("demo", help="运行内置演示套件（mock Provider）")
     return parser
@@ -305,8 +308,26 @@ def _report(args: argparse.Namespace) -> int:
             "created_by": created_by,
         }, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    if args.report_action in ("baseline-set", "baseline-show", "baseline-list"):
+    if args.report_action in ("baseline-set", "baseline-show", "baseline-list",
+                               "baseline-ensure"):
         migrate_legacy()
+        if args.report_action == "baseline-ensure":
+            # CI 首跑引导：基线缺失时用最近一次运行登记；已存在则无操作
+            path = baseline_path(args.name)
+            if path.exists():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                print("基线已存在: {} → {}（无操作）".format(args.name, data.get("run_id")))
+                return 0
+            runs = sorted((d for d in report_dir.glob("*/report.json")
+                           if d.parent.name not in ("compare", "baselines")),
+                          key=lambda p: p.stat().st_mtime)
+            if not runs:
+                print("没有可引导基线的运行记录")
+                return 2
+            _write_baseline(args.name, runs[-1].parent.name)
+            print("引导基线: {} → {}（首次运行自动登记）".format(
+                args.name, runs[-1].parent.name))
+            return 0
         if args.report_action == "baseline-list":
             if not baselines_dir.exists():
                 print("尚未登记任何基线")
@@ -408,12 +429,27 @@ def _report(args: argparse.Namespace) -> int:
     common = sorted(set(outcomes_a) & set(outcomes_b))
     only_a = sorted(set(outcomes_a) - set(outcomes_b))
     only_b = sorted(set(outcomes_b) - set(outcomes_a))
+
+    # ---- Baseline compatibility："能不能比"先于"比的结果是什么" ----
+    from llmqa.core.compare import env_diff, split_by_identity
+    id_a = (prov_a or {}).get("test_identity", {})
+    id_b = (prov_b or {}).get("test_identity", {})
+    comparable, mismatched = split_by_identity(common, id_a, id_b)
+    for line in env_diff(prov_a, prov_b):
+        print("环境差异: " + line)
+    if not comparable:
+        print("基线不可对比：{} 例身份失配（用例代码/数据已变）、{} 例新增、{} 例移除".format(
+            len(mismatched), len(only_b), len(only_a)))
+        print("请人工复核后重新登记基线（llmqa report baseline-set ...）")
+        return 2
+
     # 指标判定策略（方向 + 容差），见 config/metrics_policy.yaml
     from llmqa.core.metrics_policy import load_policies
     policies = load_policies(root)
     diffs = [compare_outcomes(outcomes_a[cid], outcomes_b[cid], policies=policies)
-             for cid in common]
+             for cid in comparable]
     counts = summarize_diffs(diffs)
+    counts["identity_mismatches"] = len(mismatched)
 
     # 输出对比报告（markdown + json）
     out_dir = report_dir / "compare"
@@ -422,30 +458,36 @@ def _report(args: argparse.Namespace) -> int:
     stem = f"compare-{stamp}-{run_a}-vs-{run_b}"
     md_path = out_dir / (stem + ".md")
     json_path = out_dir / (stem + ".json")
-    md_path.write_text(_render_compare_md(run_a, run_b, diffs, counts, only_a, only_b),
+    md_path.write_text(_render_compare_md(run_a, run_b, diffs, counts,
+                                          only_a, only_b, mismatched),
                        encoding="utf-8")
     json_path.write_text(json.dumps({
         "run_a": run_a, "run_b": run_b, "counts": counts,
         "only_in_a": only_a, "only_in_b": only_b,
+        "identity_mismatches": mismatched,
         "diffs": [d.model_dump(mode="json") for d in diffs],
     }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print("对比 {a}（基线） vs {b}（当前） | 共 {t} 例 | 回归 {r} | 改善 {i} | "
-          "指标漂移 {m} | 消息变化 {c} | 中性 {n} | 未变化 {u}".format(
+          "指标漂移 {m} | 消息变化 {c} | 中性 {n} | 身份失配 {x} | 未变化 {u}".format(
               a=run_a, b=run_b, t=counts["total"], r=counts["regressions"],
+              x=counts.get("identity_mismatches", 0),
               i=counts["improvements"], m=counts["metric_drifts"],
               c=counts["message_changes"], n=counts["neutrals"],
               u=counts["unchanged"]))
     if only_a:
-        print("仅基线有（用例被移除）: " + ", ".join(only_a[:10]))
+        print("覆盖变化-移除: " + ", ".join(only_a[:10]))
     if only_b:
-        print("仅当前有（新增用例）: " + ", ".join(only_b[:10]))
+        print("覆盖变化-新增: " + ", ".join(only_b[:10]))
+    if mismatched:
+        print("身份失配（不可对比）: " + ", ".join(mismatched[:10]))
     print("对比报告: " + str(md_path))
     return 1 if counts["regressions"] else 0
 
 
 def _render_compare_md(run_a: str, run_b: str, diffs: list,
-                       counts: dict, only_a: list, only_b: list) -> str:
+                       counts: dict, only_a: list, only_b: list,
+                       mismatched: list | None = None) -> str:
     """渲染运行间对比 Markdown 报告。"""
     lines = [
         "# 运行对比报告",
@@ -481,13 +523,18 @@ def _render_compare_md(run_a: str, run_b: str, diffs: list,
     section("失败消息变化", [d for d in diffs if d.direction == "message_change"])
     section("中性（budget/fail_fast 跳过，不计回归）",
             [d for d in diffs if d.direction == "neutral"])
+    if mismatched:
+        lines.append("## 身份失配（同 id 但用例代码/数据已变，不可直接对比）")
+        lines.append("")
+        lines.append(", ".join(mismatched))
+        lines.append("")
     if only_a:
-        lines.append("## 仅基线存在（被移除的用例）")
+        lines.append("## 覆盖变化-移除（仅基线存在）")
         lines.append("")
         lines.append(", ".join(only_a))
         lines.append("")
     if only_b:
-        lines.append("## 仅当前存在（新增用例）")
+        lines.append("## 覆盖变化-新增（仅当前存在）")
         lines.append("")
         lines.append(", ".join(only_b))
         lines.append("")

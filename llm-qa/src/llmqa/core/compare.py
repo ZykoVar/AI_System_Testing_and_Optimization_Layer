@@ -99,3 +99,50 @@ def summarize_diffs(diffs: list[OutcomeDiff]) -> dict[str, int]:
         else:
             counts["unchanged"] += 1
     return counts
+
+
+def split_by_identity(common: list[str], id_a: dict, id_b: dict) -> tuple[list[str], list[str]]:
+    """Baseline compatibility 第一关：按用例源码指纹切分。
+
+    同 case_id 但两侧指纹都存在且不同 → 身份失配（用例代码/数据已变），
+    结果不可直接对比，单独列出而非计为回归。
+    返回 (可对比列表, 身份失配列表)。
+    """
+    mismatched: list[str] = []
+    comparable: list[str] = []
+    for cid in common:
+        hash_a, hash_b = id_a.get(cid), id_b.get(cid)
+        if hash_a and hash_b and hash_a != hash_b:
+            mismatched.append(cid)
+        else:
+            comparable.append(cid)
+    return comparable, mismatched
+
+
+def env_diff(prov_a: dict | None, prov_b: dict | None) -> list[str]:
+    """报告 Prompt/数据集指纹差异行（环境差异提示：判定继续，但结论需谨慎）。"""
+    lines: list[str] = []
+
+    def prompt_set(p: dict | None) -> set:
+        if not p:
+            return set()
+        return {(u.get("id"), u.get("version"), u.get("content_hash", ""))
+                for u in (p.get("prompts_used") or [])}
+
+    def dataset_set(p: dict | None) -> set:
+        if not p:
+            return set()
+        return {(u.get("name"), u.get("content_hash", ""))
+                for u in (p.get("datasets_used") or [])}
+
+    pa, pb = prompt_set(prov_a), prompt_set(prov_b)
+    for pid, ver, h in sorted(pa - pb):
+        lines.append("Prompt 仅基线使用: {} v{} ({})".format(pid, ver, h[:6]))
+    for pid, ver, h in sorted(pb - pa):
+        lines.append("Prompt 仅当前使用: {} v{} ({})".format(pid, ver, h[:6]))
+    da, db = dataset_set(prov_a), dataset_set(prov_b)
+    for name, h in sorted(da - db):
+        lines.append("数据集仅基线加载: {} ({})".format(name, h[:6]))
+    for name, h in sorted(db - da):
+        lines.append("数据集仅当前加载: {} ({})".format(name, h[:6]))
+    return lines

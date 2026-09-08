@@ -8,8 +8,8 @@
 - 离线可跑：内置确定性 Mock Provider 与脚本化规则，CI 冒烟零成本、零密钥
 - 企业级工程：版本化 Prompt 库、LLM-as-Judge、多格式报告（JSON/Markdown/HTML/JUnit）、失败分级与门禁退出码
 - 安全第一：内置提示注入/越狱/金丝雀泄露/数据外泄红队用例与 Prompt 发布前扫描
-- **可重建实验**：每次运行携带完整溯源（git commit / Prompt 版本+内容哈希 / 数据集指纹 / 模型 / 用例源码指纹），任何结果都可追溯到"用什么代码、什么数据、什么 Prompt 跑出来的"
-- **回归平台**：命名基线（production/security/...）、指标漂移判定策略（方向+容差）、重试分桶与 SKIP 语义分类——compare 是评价引擎而非字面 diff
+- **实验可追溯**：每次运行携带完整溯源（git commit / Prompt 版本+内容哈希 / 数据集指纹 / 模型 / 用例源码指纹），任何结果都可追溯到"用什么代码、什么数据、什么 Prompt 跑出来的"（定位为可追溯的实验条件，而非完整重建——见 docs/provenance.md）
+- **回归平台**：命名基线（production/security/...）、指标漂移判定策略（方向+容差）、Baseline 兼容性判定（身份失配/覆盖变化）、重试分桶与 SKIP 语义分类——compare 是评价引擎而非字面 diff
 
 ## 功能矩阵
 

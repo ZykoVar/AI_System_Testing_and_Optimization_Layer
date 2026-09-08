@@ -15,14 +15,14 @@ llm_learn
     ├── Agent Evaluation         工具选择、参数 Schema、多步规划、会话记忆、循环与预算护栏
     ├── Security Testing         注入/越狱/提示词窃取/PII 金丝雀/有害内容/数据外泄（41 例红队）
     ├── Performance Testing      延迟分位、TTFT、吞吐、并发扩展、成本、限流韧性
-    ├── Regression Testing       命名基线（production/security/...）、compare 判定引擎、退出码门禁
+    ├── Regression Testing       命名基线、Baseline 兼容性判定、compare 判定引擎、退出码门禁
     ├── Baseline Management      基线即测试资产：commit/哈希/创建人随基线存档，团队共享
     ├── Metric Policy            指标漂移策略（方向+容差）：judge ±0.3、延迟 ±20% 等
-    ├── Provenance / 可重建      每次运行记录 commit/内容哈希/模型/用例指纹，实验可重建
-    └── CI Quality Gate          四层门禁（静态→冒烟→全量 mock→真实模型）+ 严重级与回归双门禁
+    ├── Provenance / 可追溯     每次运行记录 commit/内容哈希/模型/用例指纹（可追溯的实验条件）
+    └── CI Quality Gate          四层门禁 + L3 双门禁闭环（严重级 gate.py + 回归 compare）
 ```
 
-**136 个内置用例 · 84 个框架自测 · 双态运行（mock 离线 / 真实模型一键切换）**
+**136 个内置用例 · 92 个框架自测 · 双态运行（mock 离线 / 真实模型一键切换）**
 
 ## 快速开始
 

@@ -40,14 +40,20 @@
 
 1. **回归定位**：`llmqa report compare` 输出两次运行的 commit 差异——
    "这次回归发生在哪次代码变更上"；
-2. **实验可重建**：报告 + 基线文件（commit + 哈希）即可复现实验条件；
+2. **实验条件可追溯**：报告 + 基线文件（commit + 哈希）记录了实验条件，
+   具备较高程度的重建能力——注意这不是完整重建：generation 参数
+   （temperature/max_tokens/top_p 等）与运行时随机性配置未逐条记录（见 §4）；
 3. **审计**：基线文件记录创建人与时间，Prompt/数据集变更可追责；
 4. **团队共享**：基线文件随仓库提交，全队对比同一锚点。
 
-## 4. 当前局限与演进
+## 4. 当前局限与演进（"可追溯 ≠ 完整重建"）
 
+- **generation 参数未记录**：temperature/max_tokens/top_p 等为每调用参数，
+  未进入 provenance——需要完整重建时应在 ModelUsage 中扩展参数块并统一口径；
+- **运行时随机性配置未记录**：seed/采样器等影响结果的随机性因素缺失；
 - 数据集没有独立版本号字段——当前靠 content_hash + git commit 间接版本化，
   未来可给数据集 YAML 增加显式 `version` 字段并纳入溯源；
-- 模型参数（temperature/max_tokens）为每调用参数，未逐条记录——
-  需要时可在 ModelUsage 中扩展默认参数块；
 - git 信息采集宽容降级：非 git 环境运行不阻断测试，但溯源不完整。
+
+定位表述：当前提供的是 **reproducibility metadata（可追溯的实验条件）**，
+而非 full reconstruction（完整重建）。

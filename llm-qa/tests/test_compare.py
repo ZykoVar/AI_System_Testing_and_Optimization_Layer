@@ -1,6 +1,6 @@
 """运行间结果对比（core.compare）自测。"""
 from llmqa.core import Severity, TestOutcome, Verdict
-from llmqa.core.compare import compare_outcomes, summarize_diffs
+from llmqa.core.compare import compare_outcomes, env_diff, split_by_identity, summarize_diffs
 
 
 def outcome(case_id, verdict, message="", metrics=None):
@@ -85,6 +85,39 @@ def test_metric_policy_tolerance():
                           outcome("p1", Verdict.PASS, metrics={"judge_score": 8.0}),
                           policies=policies)
     assert d2.direction == "unchanged"
+
+
+def test_split_by_identity():
+    # 同 id 但两侧指纹不同 → 身份失配，不可直接对比
+    id_a = {"c1": "hash-old", "c2": "same", "c3": "only-a"}
+    id_b = {"c1": "hash-new", "c2": "same"}
+    comparable, mismatched = split_by_identity(["c1", "c2", "c3"], id_a, id_b)
+    assert comparable == ["c2", "c3"]   # c3 仅一侧有指纹（旧报告无溯源）→ 仍可比
+    assert mismatched == ["c1"]
+
+
+def test_split_by_identity_empty_provenance_is_comparable():
+    # 旧报告（无 test_identity）不回退为不可比——向后兼容
+    comparable, mismatched = split_by_identity(["a", "b"], {}, {})
+    assert comparable == ["a", "b"]
+    assert mismatched == []
+
+
+def test_env_diff_reports_prompt_and_dataset_changes():
+    prov_a = {"prompts_used": [{"id": "p", "version": 1, "content_hash": "aaa111"}],
+              "datasets_used": [{"name": "d", "content_hash": "bbb222"}]}
+    prov_b = {"prompts_used": [{"id": "p", "version": 1, "content_hash": "ccc333"}],
+              "datasets_used": [{"name": "d", "content_hash": "ddd444"}]}
+    lines = env_diff(prov_a, prov_b)
+    joined = "\n".join(lines)
+    assert "Prompt 仅基线使用" in joined
+    assert "Prompt 仅当前使用" in joined
+    assert "数据集仅基线加载" in joined
+    assert "数据集仅当前加载" in joined
+
+
+def test_env_diff_none_provenance():
+    assert env_diff(None, None) == []
 
 
 def test_metric_policy_relative_tolerance():

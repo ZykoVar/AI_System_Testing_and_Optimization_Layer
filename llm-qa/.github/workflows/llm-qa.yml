@@ -88,12 +88,16 @@ jobs:
           python-version: "3.10"
       - name: 安装
         run: pip install -e .
-      - name: 真实模型（低并发控制成本）
+      - name: 真实模型回归（低并发控制成本；--soft 把退出码归属交给门禁步骤）
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: llmqa run --provider openai --concurrency 2 --no-color
-      - name: 严重级门禁（CRITICAL/HIGH 失败即拦截）
+        run: llmqa run --provider openai --concurrency 2 --no-color --soft
+      - name: 严重级门禁（CRITICAL/HIGH 拦截；MEDIUM 仅告警）
         run: python scripts/gate.py reports
+      - name: 确保回归基线（首次运行自动引导，此后沿用已提交基线）
+        run: llmqa report baseline-ensure --name production
+      - name: 回归门禁（与命名基线对比，退出码 1=回归、2=基线不可对比）
+        run: llmqa report compare --baseline --baseline-name production
       - name: 上传报告
         uses: actions/upload-artifact@v4
         with:

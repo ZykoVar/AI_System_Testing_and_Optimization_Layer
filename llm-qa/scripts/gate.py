@@ -1,57 +1,79 @@
-"""CI 严重级门禁：解析最新 report.json，按严重级判定退出码。
+"""CI 严重级门禁：解析最新 report.json，按严重级阈值判定退出码。
 
-退出码：0=通过；1=CRITICAL/HIGH 失败（拦截）；2=MEDIUM 失败（告警）。
-用法：python scripts/gate.py reports
+退出码语义（CI 唯一的事实来源）：
+- 0 = 通过（含低于阈值的失败，以 [告警] 打印但不拦截）
+- 1 = 存在 ≥ 阈值的 FAIL/ERROR（拦截）
+- 3 = 未找到任何报告（配置错误）
+
+用法：
+    python scripts/gate.py reports                    # 默认阈值 HIGH：CRITICAL/HIGH 拦截
+    python scripts/gate.py reports --threshold MEDIUM # 收紧：MEDIUM 也拦截
+
+退出码归属设计：CI 中 llmqa run 使用 --soft（执行结果不直接决定 job 成败），
+由 gate.py 独占严重级判定；回归判定由 llmqa report compare 独占。
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
 
+_SEVERITY_RANK = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+
 
 def latest_report(reports_dir: Path) -> Path:
-    """按修改时间取最新一次运行的 report.json；无报告时以退出码 3 直接退出。"""
-    candidates = sorted(reports_dir.glob("*/report.json"),
-                        key=lambda p: p.stat().st_mtime, reverse=True)
+    """按修改时间取最新一次运行的 report.json（排除 compare/baselines 子目录）。"""
+    candidates = sorted(
+        (p for p in reports_dir.glob("*/report.json")
+         if p.parent.name not in ("compare", "baselines")),
+        key=lambda p: p.stat().st_mtime, reverse=True)
     if not candidates:
         print("gate: 未找到任何 report.json")
-        sys.exit(3)
+        raise SystemExit(3)
     return candidates[0]
 
 
-def main() -> int:
-    """读取最新报告，按严重级分桶并返回门禁退出码（0/1/2/3）。"""
-    reports_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("reports")
+def gate(reports_dir: Path, threshold: str = "HIGH") -> int:
+    """按严重级阈值判定门禁；返回 0=通过 / 1=拦截。可独立测试的纯逻辑。"""
+    threshold_rank = _SEVERITY_RANK[threshold.upper()]
     report_path = latest_report(reports_dir)
     data = json.loads(report_path.read_text(encoding="utf-8"))
-    print(f"gate: 检查报告 {report_path}")
+    print("gate: 检查报告 {}（阈值 {}）".format(report_path, threshold.upper()))
     print("gate: 通过 {PASS} 失败 {FAIL} 错误 {ERROR} 跳过 {SKIP} 通过率 {rate:.1%}".format(
         rate=data["pass_rate"], **data["counts"]))
-    critical = []
-    medium = []
-    low = []
+    blocking, warning = [], []
     for o in data["outcomes"]:
-        # 只对失败/错误做门禁判定，PASS/SKIP 不参与
         if o["verdict"] not in ("FAIL", "ERROR"):
             continue
         sev = o["severity"]
-        # 严重级分桶：CRITICAL/HIGH 拦截、MEDIUM 告警、LOW 仅记录
-        (critical if sev in ("CRITICAL", "HIGH") else
-         medium if sev == "MEDIUM" else low).append(o)
-    for o in critical:
-        print("  [拦截] {} {} — {}: {}".format(o["severity"], o["case_id"], o["name"], o["message"][:100]))
-    for o in medium:
-        print("  [告警] {} {} — {}: {}".format(o["severity"], o["case_id"], o["name"], o["message"][:100]))
-    # 拦截优先于告警：只要有 CRITICAL/HIGH 失败即返回 1
-    if critical:
-        print(f"gate: {len(critical)} 个 CRITICAL/HIGH 失败 → 拦截")
+        if _SEVERITY_RANK.get(sev, 0) >= threshold_rank:
+            blocking.append(o)
+        else:
+            warning.append(o)
+    for o in blocking:
+        print("  [拦截] {} {} — {}: {}".format(
+            o["severity"], o["case_id"], o["name"], o["message"][:100]))
+    for o in warning:
+        print("  [告警] {} {} — {}: {}".format(
+            o["severity"], o["case_id"], o["name"], o["message"][:100]))
+    if blocking:
+        print("gate: {} 个 ≥{} 失败 → 拦截".format(len(blocking), threshold.upper()))
         return 1
-    if medium:
-        print(f"gate: {len(medium)} 个 MEDIUM 失败 → 告警")
-        return 2
+    if warning:
+        print("gate: {} 个低于阈值的失败 → 仅告警，不拦截".format(len(warning)))
     print("gate: 通过")
     return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="严重级门禁")
+    parser.add_argument("reports_dir", default="reports", nargs="?")
+    parser.add_argument("--threshold", default="HIGH",
+                        choices=["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"],
+                        help="拦截阈值（默认 HIGH：CRITICAL/HIGH 拦截，MEDIUM 仅告警）")
+    args = parser.parse_args()
+    return gate(Path(args.reports_dir), args.threshold)
 
 
 if __name__ == "__main__":
