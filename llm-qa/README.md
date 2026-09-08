@@ -40,6 +40,11 @@ llm_learn **不做**"最强的 Eval 产品"，而做**把 Eval/Observability 产
 接入方式：`llmqa/ext/` 的 Adapter 协议（LLM 客户端 / Judge 后端 / 检索后端 /
 轨迹归一），懒加载、离线 CI 不受影响。
 
+**Agent 回归闭环**：AgentRun（唯一 Run 模型）→ AgentTrajectory（含
+TrajectoryCapabilities 能力声明）→ 行为断言 DSL（五大类：Tool/Sequence/
+Resource/Policy/State）→ behavior_hash 行为指纹 → compare 的
+`behavior_change` 回归方向——能力缺失 SKIP、行为漂移显式可见。
+
 ## 快速开始
 
 ```powershell

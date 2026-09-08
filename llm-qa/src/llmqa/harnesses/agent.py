@@ -117,8 +117,9 @@ class AgentTrace(BaseModel):
 
         外部平台轨迹经 TrajectoryAdapter 归一后与本地轨迹同构，
         因此行为断言 DSL（assertors/trajectory.py）对两种来源一视同仁。
+        能力声明如实反映 native 边界：无成本/状态/审批数据。
         """
-        from llmqa.trajectory import AgentTrajectory, TrajectoryStep
+        from llmqa.trajectory import AgentTrajectory, TrajectoryCapabilities, TrajectoryStep
 
         steps: list[TrajectoryStep] = []
         observations = {r.tool_call_id: r.output for r in self.tool_results}
@@ -146,7 +147,26 @@ class AgentTrace(BaseModel):
             agent_id=agent_id, task=self.task, steps=steps,
             finish_reason=finish,
             total_tokens=self.total_usage.total_tokens,
-            total_cost_usd=0.0,   # native 轨迹无真实成本；外部平台接入后才有
+            total_cost_usd=None,   # 语义：None=无成本数据（与"成本为 0"严格区分）
+            source="native",
+            capabilities=TrajectoryCapabilities(
+                cost=False, state_changes=False, approval_events=False),
+        )
+
+    def to_agent_run(self, agent_id: str = "native") -> "AgentRun":
+        """归一为对外的统一 Run 模型（AgentRun 是唯一 Run 抽象；
+        AgentTrace 属 runtime 内部对象，外部一律经 AgentRun 消费）。"""
+        from llmqa.trajectory import AgentRun
+
+        return AgentRun(
+            agent_id=agent_id,
+            task=self.task,
+            trajectory=self.to_trajectory(agent_id),
+            termination=self.abort_reason or "completed",
+            success=self.success,
+            final_answer=self.final_answer,
+            usage=self.total_usage,
+            latency_ms=self.latency_ms,
             source="native",
         )
 

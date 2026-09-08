@@ -137,3 +137,27 @@ def test_metric_policy_relative_tolerance():
                           outcome("p2", Verdict.PASS, metrics={"p95_ms": 100.0}),
                           policies=policies)
     assert d3.direction == "improvement"
+
+
+def test_behavior_change_detection():
+    # Agent 行为指纹不同 → behavior_change（即使判定都是 PASS）
+    a = TestOutcome(case_id="bh-1", name="bh-1", suite="agent",
+                    severity=Severity.MEDIUM, verdict=Verdict.PASS,
+                    artifacts={"behavior_hash": "aaa111"})
+    b = TestOutcome(case_id="bh-1", name="bh-1", suite="agent",
+                    severity=Severity.MEDIUM, verdict=Verdict.PASS,
+                    artifacts={"behavior_hash": "bbb222"})
+    d = compare_outcomes(a, b)
+    assert d.direction == "behavior_change"
+    assert d.behavior_hash_a == "aaa111"
+    assert d.behavior_hash_b == "bbb222"
+    # 指纹相同 → unchanged；任一侧缺失 → 不判定行为（向后兼容）
+    assert compare_outcomes(a, TestOutcome(
+        case_id="bh-1", name="bh-1", suite="agent",
+        severity=Severity.MEDIUM, verdict=Verdict.PASS,
+        artifacts={"behavior_hash": "aaa111"})).direction == "unchanged"
+    assert compare_outcomes(a, TestOutcome(
+        case_id="bh-1", name="bh-1", suite="agent",
+        severity=Severity.MEDIUM, verdict=Verdict.PASS)).direction == "unchanged"
+    counts = summarize_diffs([d])
+    assert counts["behavior_changes"] == 1

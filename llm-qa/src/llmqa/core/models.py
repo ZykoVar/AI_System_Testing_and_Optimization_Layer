@@ -56,6 +56,8 @@ class TestOutcome(BaseModel):
     retries_used: int = 0  # 本次判定前因 ERROR 实际重试的次数（0=一次通过），用于 flaky 可见性
     skip_reason: str = ""  # SKIP 语义分类：intentional | budget | fail_fast（""=非 SKIP）
                            # 回归对比时 budget/fail_fast 视为中性，避免误报回归
+    artifacts: dict[str, Any] = Field(default_factory=dict)  # 结构化产物（behavior_hash/trace_url 等）
+                           # Agent 用例不应把轨迹塞进 evidence 字符串黑洞，结构化数据放这里
 
 
 class TestContext(BaseModel):
@@ -73,6 +75,7 @@ class TestContext(BaseModel):
     datasets: Any           # DatasetManager
     record_metrics: dict = Field(default_factory=dict)    # 用例主动记录的判定数据（PASS 也落盘）
     record_evidence: list = Field(default_factory=list)   # 用例主动记录的证据（PASS 也落盘）
+    artifacts: dict = Field(default_factory=dict)         # 结构化产物（行为指纹/轨迹引用等）
 
     def record(self, **metrics) -> None:
         """记录判定数据（judge 分数/相似度/延迟分位等）——PASS 用例的信号来源。
@@ -84,6 +87,13 @@ class TestContext(BaseModel):
     def add_evidence(self, text: str) -> None:
         """记录证据文本（裁判理由/关键片段等），PASS 用例同样可见。"""
         self.record_evidence.append(text)
+
+    def record_artifact(self, key: str, value: Any) -> None:
+        """记录结构化产物（Agent 行为指纹/外部 trace 引用等），随 TestOutcome.artifacts 落盘。
+
+        与 evidence 的分工：evidence 存人类可读文本，artifacts 存机器可比对的
+        结构化数据（行为回归对比依赖它）。"""
+        self.artifacts[key] = value
 
     def client(self, name: str | None = None):
         """按名称从连接池获取客户端；不传名则取默认 Provider。"""

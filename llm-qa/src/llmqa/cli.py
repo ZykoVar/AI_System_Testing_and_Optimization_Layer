@@ -490,12 +490,13 @@ def _report(args: argparse.Namespace) -> int:
     }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print("对比 {a}（基线） vs {b}（当前） | 共 {t} 例 | 回归 {r} | 改善 {i} | "
-          "指标漂移 {m} | 消息变化 {c} | 中性 {n} | 身份失配 {x} | 未变化 {u}".format(
+          "指标漂移 {m} | 消息变化 {c} | 行为变化 {bv} | 中性 {n} | 身份失配 {x} | "
+          "未变化 {u}".format(
               a=run_a, b=run_b, t=counts["total"], r=counts["regressions"],
               x=counts.get("identity_mismatches", 0),
               i=counts["improvements"], m=counts["metric_drifts"],
-              c=counts["message_changes"], n=counts["neutrals"],
-              u=counts["unchanged"]))
+              c=counts["message_changes"], bv=counts["behavior_changes"],
+              n=counts["neutrals"], u=counts["unchanged"]))
     if only_a:
         print("覆盖变化-移除: " + ", ".join(only_a[:10]))
     if only_b:
@@ -542,6 +543,8 @@ def _render_compare_md(run_a: str, run_b: str, diffs: list,
     section("指标漂移（仅记录，未声明策略或中性方向）",
             [d for d in diffs if d.direction == "metric_drift"])
     section("失败消息变化", [d for d in diffs if d.direction == "message_change"])
+    section("行为变化（Agent 行为指纹不同，需详细 diff canonical_behavior）",
+            [d for d in diffs if d.direction == "behavior_change"])
     section("中性（budget/fail_fast 跳过，不计回归）",
             [d for d in diffs if d.direction == "neutral"])
     if mismatched:

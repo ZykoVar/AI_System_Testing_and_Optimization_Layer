@@ -29,11 +29,13 @@ class OutcomeDiff(BaseModel):
     severity: Severity
     verdict_a: Verdict
     verdict_b: Verdict
-    direction: str = "unchanged"   # regression | improvement | metric_drift | message_change | unchanged | neutral
+    direction: str = "unchanged"   # regression | improvement | metric_drift | message_change | behavior_change | unchanged | neutral
     message_a: str = ""
     message_b: str = ""
     metric_diffs: dict[str, dict[str, float]] = Field(default_factory=dict)  # 显著变化的指标 {metric: {a, b}}
     metric_signs: dict[str, str] = Field(default_factory=dict)               # 每项指标的方向（regression/improvement/drift）
+    behavior_hash_a: str = ""
+    behavior_hash_b: str = ""        # behavior_change 方向时记录两侧行为指纹
 
 
 def compare_outcomes(a: TestOutcome, b: TestOutcome, *,
@@ -77,6 +79,13 @@ def compare_outcomes(a: TestOutcome, b: TestOutcome, *,
                            metric_diffs=diffs, metric_signs=signs)
     if a.verdict in (Verdict.FAIL, Verdict.ERROR) and a.message != b.message:
         return OutcomeDiff(**base, direction="message_change")
+    # 行为回归：Agent 用例的规范化行为指纹（工具序列/参数/终止/状态迁移）不同
+    # → 单独报告 behavior_change，供详细 diff（行为细节见 canonical_behavior）
+    hash_a = (a.artifacts or {}).get("behavior_hash")
+    hash_b = (b.artifacts or {}).get("behavior_hash")
+    if hash_a and hash_b and hash_a != hash_b:
+        return OutcomeDiff(**base, direction="behavior_change",
+                           behavior_hash_a=hash_a, behavior_hash_b=hash_b)
     return OutcomeDiff(**base, direction="unchanged")
 
 
@@ -84,7 +93,7 @@ def summarize_diffs(diffs: list[OutcomeDiff]) -> dict[str, int]:
     """按方向汇总。"""
     counts = {"total": len(diffs), "unchanged": 0, "regressions": 0,
               "improvements": 0, "metric_drifts": 0, "message_changes": 0,
-              "neutrals": 0}
+              "behavior_changes": 0, "neutrals": 0}
     for d in diffs:
         if d.direction == "regression":
             counts["regressions"] += 1
@@ -94,6 +103,8 @@ def summarize_diffs(diffs: list[OutcomeDiff]) -> dict[str, int]:
             counts["metric_drifts"] += 1
         elif d.direction == "message_change":
             counts["message_changes"] += 1
+        elif d.direction == "behavior_change":
+            counts["behavior_changes"] += 1
         elif d.direction == "neutral":
             counts["neutrals"] += 1
         else:

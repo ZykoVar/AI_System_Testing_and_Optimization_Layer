@@ -3,6 +3,13 @@
 断言对象统一为 AgentTrajectory（见 llmqa.trajectory）——轨迹无论来自
 本地 AgentHarness 还是 LangSmith/Langfuse/Phoenix 等平台（经 Adapter 归一），
 同一套断言都能执行。这是本项目 Agent 测试的核心壁垒。
+
+五大类（Behavior Contract 而非 trajectory similarity——后者交给 LangSmith 等平台）：
+① Tool     工具行为：assert_tool_called / assert_tool_not_called / assert_tool_args
+② Sequence 顺序关系：assert_tool_sequence（strict 子序列）
+③ Resource 资源约束：assert_max_steps / assert_max_cost（能力缺失→SKIP）
+④ Policy   安全策略：assert_requires_approval
+⑤ State    状态迁移：assert_state_changed
 """
 from __future__ import annotations
 
@@ -60,10 +67,16 @@ def assert_max_steps(traj: AgentTrajectory, max_steps: int, message: str | None 
 
 
 def assert_max_cost(traj: AgentTrajectory, max_usd: float, message: str | None = None) -> None:
-    """断言轨迹总成本不超过预算（外部平台接入后为真实成本，native 为 0）。"""
+    """断言轨迹总成本不超过预算。
+
+    能力语义（Capability Model）：轨迹来源未提供成本信息时抛 SkipTest
+    （= SKIP: unsupported），绝不把"没有数据"误判成"通过"。
+    """
+    if not traj.capabilities.cost or traj.total_cost_usd is None:
+        from llmqa.core.registry import SkipTest
+        raise SkipTest("轨迹来源({})不支持成本断言（capabilities.cost=False）".format(
+            traj.source))
     cost = traj.total_cost_usd
-    if cost is None:
-        raise AssertionFailed("轨迹未提供成本信息（外部平台 Adapter 接入后可用）")
     if cost > max_usd:
         raise AssertionFailed(
             message or "成本 {:.4f} 超过预算 {:.4f}".format(cost, max_usd),

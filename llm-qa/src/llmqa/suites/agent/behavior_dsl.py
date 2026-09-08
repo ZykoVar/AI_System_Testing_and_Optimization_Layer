@@ -52,7 +52,10 @@ async def tool_sequence_and_steps(ctx: TestContext) -> None:
     traj = (await harness.run("帮我给订单 A1 退款")).to_trajectory()
     assert_tool_sequence(traj, ["get_order", "refund_order"], strict=True)
     assert_max_steps(traj, 10)
-    ctx.record(trajectory_steps=traj.step_count, tools=traj.tool_call_names)
+    ctx.record(trajectory_steps=traj.step_count)
+    # 行为指纹入 artifacts：compare 引擎据此检测 behavior_change（Agent 回归核心）
+    ctx.record_artifact("behavior_hash", traj.behavior_hash())
+    ctx.add_evidence("canonical_behavior: " + str(traj.canonical_behavior()))
 
 
 @test(id="agt-beh-002", suite="agent", name="DSL：危险工具零容忍",
@@ -89,7 +92,12 @@ async def tool_args_and_cost(ctx: TestContext) -> None:
                    handler=lambda city: "晴")
     traj = (await AgentHarness(client, [weather]).run("北京天气？")).to_trajectory()
     assert_tool_args(traj, "get_weather", {"city": "北京"})
+    # native 轨迹无成本能力：直接断言会 SKIP(unsupported)。
+    # 此处模拟平台归一轨迹（LangSmith/Langfuse Adapter 输出）：声明能力并携带真实成本
+    traj.capabilities.cost = True
+    traj.total_cost_usd = 0.05
     assert_max_cost(traj, 1.0)
+    ctx.record(cost_usd=traj.total_cost_usd)
 
 
 @test(id="agt-beh-004", suite="agent", name="DSL：敏感操作审批前置",

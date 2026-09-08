@@ -104,6 +104,7 @@ class TestRunner:
         verdict, message, tb = Verdict.ERROR, "", None
         metrics: dict = {}
         evidence: list[str] = []   # 断言附带的证据（裁判理由/引用），随结果落盘
+        artifacts: dict = {}       # 结构化产物（行为指纹/轨迹引用），随结果落盘
         skip_reason = ""           # SKIP 语义分类（intentional/budget/fail_fast）
         if case.skip:
             verdict, message, skip_reason = Verdict.SKIP, "用例标记为 skip", "intentional"
@@ -118,6 +119,7 @@ class TestRunner:
                     # 让真实运行沉淀质量信号而非只有"通过"二字
                     metrics = dict(ctx.record_metrics)
                     evidence = list(ctx.record_evidence)
+                    artifacts = dict(ctx.artifacts)
                     break
                 except SkipTest as e:
                     verdict, message, skip_reason = Verdict.SKIP, str(e), "intentional"
@@ -153,6 +155,7 @@ class TestRunner:
             duration_ms=(time.perf_counter() - start) * 1000,
             message=message, metrics=metrics, traceback=tb,
             evidence=evidence,
+            artifacts=artifacts,
             retries_used=attempt,   # flaky 可见性：0=一次通过，N=重试 N 次后判定
             skip_reason=skip_reason,
         )

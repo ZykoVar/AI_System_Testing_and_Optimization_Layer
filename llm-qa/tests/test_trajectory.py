@@ -52,18 +52,41 @@ def test_tool_sequence_subsequence_and_strict():
         assert_tool_sequence(traj, ["answer", "get_document"])         # 顺序不符
 
 
-def test_max_steps_and_cost():
+def test_max_steps():
     traj = make_traj(["a", "b"])
     assert_max_steps(traj, 2)
     with pytest.raises(AssertionFailed):
         assert_max_steps(traj, 1)
+
+
+def test_max_cost_capability_semantics():
+    from llmqa.core.registry import SkipTest
+    from llmqa.trajectory import TrajectoryCapabilities
+
+    traj = make_traj(["a"])
+    # 无成本能力 → SKIP(unsupported)，绝不误判为通过
+    with pytest.raises(SkipTest):
+        assert_max_cost(traj, 0.10)
+    # 声明能力并给真实成本 → 正常判定
+    traj.capabilities = TrajectoryCapabilities(cost=True)
     traj.total_cost_usd = 0.05
     assert_max_cost(traj, 0.10)
     with pytest.raises(AssertionFailed):
         assert_max_cost(traj, 0.01)
+    # 能力声明了但数据缺失 → 同样 SKIP（0 与 None 必须区分）
     traj.total_cost_usd = None
-    with pytest.raises(AssertionFailed):
-        assert_max_cost(traj, 0.10)   # 无成本信息必须显式失败
+    with pytest.raises(SkipTest):
+        assert_max_cost(traj, 0.10)
+
+
+def test_zero_cost_is_not_missing_cost():
+    # 语义区分：0.0 = 成本确为 0（可判定），None = 无数据（SKIP）
+    from llmqa.trajectory import TrajectoryCapabilities
+
+    traj = make_traj(["a"])
+    traj.capabilities = TrajectoryCapabilities(cost=True)
+    traj.total_cost_usd = 0.0
+    assert_max_cost(traj, 1.0)   # 0 成本在预算内 → 通过
 
 
 def test_tool_args_subset():
@@ -95,6 +118,32 @@ def test_state_changed():
         assert_state_changed(traj, "order.status", from_="shipped", to="refunded")
     with pytest.raises(AssertionFailed):
         assert_state_changed(traj, "order.nonexistent", to="x")
+
+
+def test_behavior_hash_canonicalization():
+    # 指纹只依赖规范行为：工具名/参数/终止/状态迁移；模型原话与时间戳不参与
+    t1 = AgentTrajectory(task="t", steps=[
+        tc("get_order", {"order_id": "A1"}), tc("refund_order", {"order_id": "A1"})])
+    t2 = AgentTrajectory(task="t", steps=[
+        tc("get_order", {"order_id": "A1"}), tc("refund_order", {"order_id": "A1"})])
+    assert t1.behavior_hash() == t2.behavior_hash()
+    t3 = AgentTrajectory(task="t", steps=[
+        tc("get_order", {"order_id": "A1"}), tc("refund_order", {"order_id": "A2"})])
+    assert t1.behavior_hash() != t3.behavior_hash()          # 参数变化 → 指纹变化
+    t4 = AgentTrajectory(task="t", steps=[tc("get_order", {})],
+                         finish_reason="loop_detected")
+    assert t1.behavior_hash() != t4.behavior_hash()          # 终止原因参与指纹
+
+
+def test_agent_run_model_and_capabilities():
+    # native 轨迹的能力声明必须如实（无成本/状态/审批），AgentRun 承载轨迹为 evidence
+    traj = make_traj(["search"])
+    assert traj.capabilities.cost is False
+    assert traj.capabilities.state_changes is False
+    from llmqa.trajectory import AgentRun
+    run = AgentRun(task="t", trajectory=traj, success=True,
+                   final_answer="答案", source="native")
+    assert run.trajectory.behavior_hash() == traj.behavior_hash()
 
 
 def test_agent_trace_to_trajectory():

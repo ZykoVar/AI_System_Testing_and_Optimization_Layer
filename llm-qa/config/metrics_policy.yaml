@@ -23,3 +23,6 @@ metrics:
   requests_per_second: {direction: higher_better, tolerance: 20%}
   tokens_per_second: {direction: higher_better, tolerance: 20%}
   error_rate: {direction: lower_better, tolerance: 0.05}
+  # Agent 行为指标（轨迹/成本回归）
+  trajectory_steps: {direction: lower_better, tolerance: 0}
+  cost_usd: {direction: lower_better, tolerance: 0}

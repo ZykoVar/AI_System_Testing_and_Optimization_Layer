@@ -31,9 +31,18 @@ llm_learn 是 **AI System Testing & Optimization Layer**：
                        Quality Gate
 ```
 
-核心资产：**统一测试模型（TestOutcome）+ 轨迹统一模型（AgentTrajectory）+
+核心资产：**统一测试模型（TestOutcome）+ AgentRun/AgentTrajectory 轨迹统一模型 +
 行为断言 DSL + 回归语义**；接入点：`llmqa/ext/` 的四个 Adapter 协议
 （LLM 客户端 / Judge 后端 / 检索后端 / 轨迹归一）。
+
+**Run 模型收敛（架构评审 §4/§6）**：
+- `AgentRun` 是对外唯一 Run 抽象（trajectory 为核心 evidence + termination/usage/artifacts）；
+  `AgentTrace` 是 runtime 内部对象，随演进消失；
+- `TrajectoryCapabilities` 声明轨迹来源提供哪些信息——能力缺失时相关断言
+  SKIP(unsupported)，绝不把"没有数据"误判成"通过"（成本 None 与 0.0 严格区分）；
+- **Agent 回归**：`behavior_hash()`（规范化行为指纹：工具序列/参数/终止/状态迁移）
+  写入 TestOutcome.artifacts，compare 引擎新增 `behavior_change` 方向——
+  工具序列/成本/终止原因的变化在回归报告中显式可见。
 
 ## 1. 分层视图
 
