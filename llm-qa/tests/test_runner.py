@@ -174,6 +174,24 @@ def test_filtering():
     clear_registry()
 
 
+def test_artifacts_propagate_to_outcome():
+    # 结构化产物（行为指纹等）必须从 ctx 到达 TestOutcome（行为回归的数据来源）
+    clear_registry()
+
+    @register_test(id="unit-009b", suite="unit", name="产物用例")
+    async def case_artifacts(ctx):
+        ctx.record_artifact("behavior_hash", "deadbeef1234")
+        ctx.record_artifact("trace_url", "https://example.com/trace/1")
+
+    report = asyncio.run(TestRunner(make_ctx, retries_on_error=0).run_all(
+        get_registered_cases()))
+    outcome = report.outcomes[0]
+    assert outcome.verdict == Verdict.PASS
+    assert outcome.artifacts["behavior_hash"] == "deadbeef1234"
+    assert outcome.artifacts["trace_url"] == "https://example.com/trace/1"
+    clear_registry()
+
+
 def test_cost_budget_skips_over_budget_cases():
     clear_registry()
 

@@ -42,7 +42,16 @@ llm_learn 是 **AI System Testing & Optimization Layer**：
   SKIP(unsupported)，绝不把"没有数据"误判成"通过"（成本 None 与 0.0 严格区分）；
 - **Agent 回归**：`behavior_hash()`（规范化行为指纹：工具序列/参数/终止/状态迁移）
   写入 TestOutcome.artifacts，compare 引擎新增 `behavior_change` 方向——
-  工具序列/成本/终止原因的变化在回归报告中显式可见。
+  工具序列/成本/终止原因的变化在回归报告中显式可见；
+- **行为规范化（Behavior Canonicalization）**：`config/behavior_canonicalization.yaml`
+  声明三级参数策略（exact/normalized/ignore）+ 全局忽略字段（user_id/request_id/
+  timestamp 等动态噪音）+ 每工具策略（如 search 只保留 query 归一化、refund_order
+  忽略 order_id）——"参数变化≠行为变化"不再产生回归误报；
+  指纹稳定性由 json.dumps(sort_keys=True) 全层级排序保证；
+- **行为策略旋钮**：行为变化默认仅报告（`compare` 退出码不受影响），
+  `--strict-behavior` 时计入回归拦截——"行为变化是否算回归"由 policy 决定；
+- **平台 Adapter 实现状态（如实声明）**：LangfuseAdapter 为完整映射实现
+  （按公开数据模型，fixture 验证；未经真实平台实测）；LangSmithAdapter 为骨架。
 
 ## 1. 分层视图
 

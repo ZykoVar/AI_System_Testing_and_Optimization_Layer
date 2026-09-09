@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
@@ -88,27 +89,110 @@ class AgentTrajectory(BaseModel):
         return out
 
     # ---------- Behavior Fingerprint（Agent Regression 基础） ----------
-    def canonical_behavior(self) -> dict:
-        """规范化行为：忽略 timestamp/trace_id/模型原话，
-        保留工具名、参数、顺序、终止原因、状态迁移与策略事件。"""
+    def canonical_behavior(self, canonicalizer=None) -> dict:
+        """规范化行为：忽略 timestamp/trace_id/模型原话，保留工具名、参数、
+        顺序、终止原因、状态迁移与策略事件。
+
+        canonicalizer（BehaviorCanonicalizer）：决定工具参数如何参与指纹
+        （exact/normalized/ignore + 全局忽略字段），解决动态参数噪音——
+        user_id/order_id/timestamp 等"参数变化≠行为变化"是回归误报主源。
+        """
+        states = self.state_changes()
+        if canonicalizer is not None and canonicalizer.ignored_state_keys:
+            ignored = set(canonicalizer.ignored_state_keys)
+            states = [s for s in states if s["key"] not in ignored]
         return {
             "task": self.task,
             "tools": self.tool_call_names,
-            "tool_args": [s.tool_call.arguments for s in self.steps
-                          if s.kind == "tool_call" and s.tool_call],
+            "tool_args": [
+                canonicalizer.canonicalize_args(s.tool_call.name, s.tool_call.arguments)
+                if canonicalizer is not None else s.tool_call.arguments
+                for s in self.steps
+                if s.kind == "tool_call" and s.tool_call],
             "termination": self.finish_reason,
-            "state_transitions": self.state_changes(),
+            "state_transitions": states,
             "approval_events": [s.tool_call.name for s in self.steps
                                 if s.kind == "approval_request"
                                 or (s.kind == "tool_call" and s.tool_call
                                     and "approval" in s.tool_call.name)],
         }
 
-    def behavior_hash(self) -> str:
-        """规范化行为的 sha256 指纹（前 12 位）：快速发现行为是否发生变化。"""
-        payload = json.dumps(self.canonical_behavior(), ensure_ascii=False,
-                             sort_keys=True, default=str)
+    def behavior_hash(self, canonicalizer=None) -> str:
+        """规范化行为的 sha256 指纹（前 12 位）：快速发现行为是否发生变化。
+
+        稳定性保证：json.dumps(sort_keys=True) 对全部层级排序，
+        参数插入顺序不影响指纹；动态参数噪音由 canonicalizer 排除。
+        """
+        payload = json.dumps(self.canonical_behavior(canonicalizer),
+                             ensure_ascii=False, sort_keys=True, default=str)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+
+
+class ArgPolicy(BaseModel):
+    """单个工具的参数规范化策略。"""
+    mode: str = "exact"            # exact | normalized | ignore
+    keep_args: list[str] = Field(default_factory=list)   # 白名单（空=不限制）
+    ignore_args: list[str] = Field(default_factory=list) # 黑名单（始终排除）
+
+
+def _normalize_value(value: Any) -> Any:
+    """归一化：字符串折叠空白+小写；容器递归；其余原样。"""
+    if isinstance(value, str):
+        return " ".join(value.strip().lower().split())
+    if isinstance(value, list):
+        return [_normalize_value(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _normalize_value(v) for k, v in sorted(value.items())}
+    return value
+
+
+class BehaviorCanonicalizer(BaseModel):
+    """行为规范化器：决定哪些工具参数参与 behavior_hash（CI 回归原语的关键）。
+
+    配置来源：config/behavior_canonicalization.yaml（load_default 加载）。
+    三级模式：exact（默认，保守）/ normalized（参与参数归一化）/ ignore（不参与）。
+    全局 ignored_fields 排除动态参数噪音（user_id/request_id/timestamp 等）。
+    """
+    default_tool_args: str = "exact"
+    ignored_fields: list[str] = Field(default_factory=list)
+    ignored_state_keys: list[str] = Field(default_factory=list)
+    per_tool: dict[str, ArgPolicy] = Field(default_factory=dict)
+
+    @classmethod
+    def load_default(cls, root: str | Path | None = None) -> "BehaviorCanonicalizer":
+        """从仓库 config/behavior_canonicalization.yaml 加载（缺失时回退全 exact）。"""
+        from llmqa.config import repo_root
+        import yaml
+        base = Path(root) if root else repo_root()
+        path = base / "config" / "behavior_canonicalization.yaml"
+        if not path.exists():
+            return cls()
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        return cls(
+            default_tool_args=data.get("default_tool_args", "exact"),
+            ignored_fields=data.get("ignored_fields", []),
+            ignored_state_keys=data.get("ignored_state_keys", []),
+            per_tool={name: ArgPolicy(**policy)
+                      for name, policy in (data.get("per_tool") or {}).items()},
+        )
+
+    def policy_for(self, tool_name: str) -> ArgPolicy:
+        return self.per_tool.get(tool_name, ArgPolicy(mode=self.default_tool_args))
+
+    def canonicalize_args(self, tool_name: str, arguments: dict) -> dict:
+        """按策略过滤+归一化参数；ignore 模式返回空（该工具参数不参与指纹）。"""
+        policy = self.policy_for(tool_name)
+        if policy.mode == "ignore":
+            return {}
+        ignored = set(self.ignored_fields) | set(policy.ignore_args)
+        out: dict[str, Any] = {}
+        for key, value in sorted(arguments.items()):
+            if key in ignored:
+                continue
+            if policy.keep_args and key not in policy.keep_args:
+                continue
+            out[key] = _normalize_value(value) if policy.mode == "normalized" else value
+        return out
 
 
 class AgentRun(BaseModel):

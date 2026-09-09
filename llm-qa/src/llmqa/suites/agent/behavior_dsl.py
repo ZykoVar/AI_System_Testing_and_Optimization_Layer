@@ -53,8 +53,12 @@ async def tool_sequence_and_steps(ctx: TestContext) -> None:
     assert_tool_sequence(traj, ["get_order", "refund_order"], strict=True)
     assert_max_steps(traj, 10)
     ctx.record(trajectory_steps=traj.step_count)
-    # 行为指纹入 artifacts：compare 引擎据此检测 behavior_change（Agent 回归核心）
-    ctx.record_artifact("behavior_hash", traj.behavior_hash())
+    # 行为指纹入 artifacts：compare 引擎据此检测 behavior_change（Agent 回归核心）。
+    # 使用配置化 canonicalizer（config/behavior_canonicalization.yaml）：
+    # 动态参数（order_id 等）不参与指纹，避免"参数变化≠行为变化"的误报
+    from llmqa.trajectory import BehaviorCanonicalizer
+    canonicalizer = BehaviorCanonicalizer.load_default()
+    ctx.record_artifact("behavior_hash", traj.behavior_hash(canonicalizer))
     ctx.add_evidence("canonical_behavior: " + str(traj.canonical_behavior()))
 
 

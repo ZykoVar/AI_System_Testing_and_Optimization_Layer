@@ -1,0 +1,27 @@
+# 行为规范化策略：决定哪些内容参与 behavior_hash（Agent 回归的 CI 原语）
+#
+# 三级模式（per-tool 可覆盖）：
+#   exact      全部参数精确参与（默认，保守）
+#   normalized 参与参数做归一化（空白折叠/大小写/字符串去噪）
+#   ignore     该工具的全部参数不参与指纹
+#
+# 全局忽略字段：动态参数噪音源（user_id/request_id/timestamp 等），
+# 任何工具的这些字段都不参与指纹——避免"参数变化≠行为变化"造成的误报。
+default_tool_args: exact
+ignored_fields:
+  - user_id
+  - request_id
+  - timestamp
+  - session_id
+  - trace_id
+# 状态迁移中忽略的键（动态状态值不参与指纹）
+ignored_state_keys: []
+per_tool:
+  # 示例：搜索工具只保留语义参数 query 并做归一化；其余参数（分页/语言等）忽略
+  search:
+    mode: normalized
+    keep_args: [query]
+  # 示例：退款工具忽略动态订单号（order_id 变化不代表行为变化）
+  refund_order:
+    mode: exact
+    ignore_args: [order_id]

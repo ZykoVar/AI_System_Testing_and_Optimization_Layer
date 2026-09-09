@@ -109,6 +109,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
                        help="A 侧取已登记的基线（llmqa report baseline-set 设置）")
     p_cmp.add_argument("--baseline-name", default="production",
                        help="基线名称（默认 production，配合 --baseline 使用）")
+    p_cmp.add_argument("--strict-behavior", action="store_true",
+                       help="行为变化（behavior_change）计入回归判定：退出码 1 拦截；"
+                            "默认仅报告不拦截（行为是否算回归由 policy 决定）")
     p_cmp.add_argument("--report-dir", default=None, help="报告根目录（默认 settings.report_dir）")
     p_bset = rep_sub.add_parser("baseline-set", help="把某次运行登记为命名基线")
     p_bset.add_argument("run_id", help="运行 ID（reports/ 下目录名）")
@@ -503,7 +506,13 @@ def _report(args: argparse.Namespace) -> int:
         print("覆盖变化-新增: " + ", ".join(only_b[:10]))
     if mismatched:
         print("身份失配（不可对比）: " + ", ".join(mismatched[:10]))
+    if counts["behavior_changes"] and not args.strict_behavior:
+        print("提示: {} 例行为变化仅报告未拦截（--strict-behavior 可计入回归门禁）".format(
+            counts["behavior_changes"]))
     print("对比报告: " + str(md_path))
+    # 行为是否算回归由 policy 决定：默认仅报告；--strict-behavior 时计入拦截
+    if args.strict_behavior and counts["behavior_changes"]:
+        return 1
     return 1 if counts["regressions"] else 0
 
 

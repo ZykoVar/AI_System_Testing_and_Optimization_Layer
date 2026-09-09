@@ -135,6 +135,75 @@ def test_behavior_hash_canonicalization():
     assert t1.behavior_hash() != t4.behavior_hash()          # 终止原因参与指纹
 
 
+def test_canonicalizer_dynamic_args_noise():
+    from llmqa.trajectory import ArgPolicy, BehaviorCanonicalizer
+
+    # 动态参数（user_id/request_id/order_id）不参与指纹 → hash 稳定
+    canon = BehaviorCanonicalizer(
+        default_tool_args="exact",
+        ignored_fields=["user_id", "request_id"],
+        per_tool={"refund_order": ArgPolicy(mode="exact", ignore_args=["order_id"])},
+    )
+    t1 = AgentTrajectory(task="t", steps=[
+        tc("search", {"query": "iphone", "user_id": "u1"}),
+        tc("refund_order", {"order_id": "A1"})])
+    t2 = AgentTrajectory(task="t", steps=[
+        tc("search", {"query": "iphone", "user_id": "u2"}),
+        tc("refund_order", {"order_id": "A999"})])
+    assert t1.behavior_hash(canon) == t2.behavior_hash(canon)   # 噪音字段被忽略
+    assert t1.behavior_hash() != t2.behavior_hash()             # 无规范化器时如实反映差异
+    # 语义参数变化仍然可见
+    t3 = AgentTrajectory(task="t", steps=[
+        tc("search", {"query": "ipad", "user_id": "u1"}),
+        tc("refund_order", {"order_id": "A1"})])
+    assert t1.behavior_hash(canon) != t3.behavior_hash(canon)
+
+
+def test_canonicalizer_normalized_mode():
+    from llmqa.trajectory import ArgPolicy, BehaviorCanonicalizer
+
+    canon = BehaviorCanonicalizer(
+        default_tool_args="exact",
+        per_tool={"search": ArgPolicy(mode="normalized", keep_args=["query"])},
+    )
+    t1 = AgentTrajectory(task="t", steps=[
+        tc("search", {"query": "  iPhone 15 ", "language": "zh"})])
+    t2 = AgentTrajectory(task="t", steps=[
+        tc("search", {"query": "iphone 15", "language": "en"})])
+    # 空白/大小写归一 + keep_args 白名单（language 不参与）→ hash 一致
+    assert t1.behavior_hash(canon) == t2.behavior_hash(canon)
+    # 语义变化仍可检测
+    t3 = AgentTrajectory(task="t", steps=[tc("search", {"query": "ipad", "language": "en"})])
+    assert t1.behavior_hash(canon) != t3.behavior_hash(canon)
+
+
+def test_canonicalizer_ignore_mode_and_state_keys():
+    from llmqa.trajectory import ArgPolicy, BehaviorCanonicalizer
+
+    canon = BehaviorCanonicalizer(
+        per_tool={"search": ArgPolicy(mode="ignore")},
+        ignored_state_keys=["order.updated_at"],
+    )
+    t1 = AgentTrajectory(task="t", steps=[
+        tc("search", {"query": "任意参数都不参与"}),
+        TrajectoryStep(index=9, kind="state_change",
+                       state={"order.updated_at": {"from": "t1", "to": "t2"}})])
+    t2 = AgentTrajectory(task="t", steps=[
+        tc("search", {"query": "完全不同"}),
+        TrajectoryStep(index=9, kind="state_change",
+                       state={"order.updated_at": {"from": "t3", "to": "t4"}})])
+    assert t1.behavior_hash(canon) == t2.behavior_hash(canon)
+
+
+def test_canonicalizer_load_default_from_repo():
+    from llmqa.trajectory import BehaviorCanonicalizer
+    canon = BehaviorCanonicalizer.load_default()
+    # 仓库配置：search=normalized+keep(query)、refund_order 忽略 order_id
+    assert canon.policy_for("search").mode == "normalized"
+    assert canon.policy_for("refund_order").ignore_args == ["order_id"]
+    assert "user_id" in canon.ignored_fields
+
+
 def test_agent_run_model_and_capabilities():
     # native 轨迹的能力声明必须如实（无成本/状态/审批），AgentRun 承载轨迹为 evidence
     traj = make_traj(["search"])

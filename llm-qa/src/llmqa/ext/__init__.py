@@ -8,8 +8,8 @@
 - Retriever 协议           → 可用契约（真实向量库接入 RAGHarness，见 harnesses/rag）
 - RagasJudgeBackend       → 接入骨架（adapter contract）：证明可插拔性，
                              ragas.evaluate 绑定需按锁定版本补全（见模块 docstring）
-- LangSmith/Langfuse Adapter → 轨迹归一骨架：平台轨迹 → AgentTrajectory
-                             （映射需按所用平台导出结构补全；判定由 DSL 负责）
+- Langfuse Adapter         → 完整映射实现（fixture 验证；未经真实平台实测）
+- LangSmith Adapter        → 轨迹归一骨架（映射需按所用平台导出结构补全）
 """
 from llmqa.ext.litellm_backend import LiteLLMClient
 from llmqa.ext.ragas_backend import RagasJudgeBackend
