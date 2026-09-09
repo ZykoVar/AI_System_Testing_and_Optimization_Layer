@@ -1,10 +1,6 @@
-# llm_learn
+# 项目
 
-LLM/Agent 学习与工程实践工作区。
-
-## 项目
-
-### llm-qa —— AI System Testing & Optimization Layer
+## llm-qa —— AI System Testing & Optimization Layer
 
 定位：**不做"最强的 Eval 产品"，做把 Eval/Observability 产品、Agent Runtime 与 CI 串起来的测试与优化层**——外部平台负责能力（LiteLLM 网关 / Ragas 指标 / LangSmith·Langfuse 轨迹），本项目负责工程体系（统一测试模型、Agent 行为断言 DSL、回归语义、质量门禁）。
 
