@@ -5,7 +5,7 @@
 定位：**不做"最强的 Eval 产品"，做把 Eval/Observability 产品、Agent Runtime 与 CI 串起来的测试与优化层**——外部平台负责能力（LiteLLM 网关 / Ragas 指标 / LangSmith·Langfuse 轨迹），本项目负责工程体系（统一测试模型、Agent 行为断言 DSL、回归语义、质量门禁）。
 
 ```text
-llm_learn/                     # 仓库根（GitHub: Simon214hz/llm_learn）
+llm_learn/                     # 仓库根（GitHub: ZykoVar/AI_System_Testing_and_Optimization_Layer）
 ├── llm-qa/                    # 测试框架本体：五大套件 + 回归平台（详见 llm-qa/README.md）
 ├── docs/                      # 仓库级文档与架构图（diagrams/）
 └── tools/                     # 辅助工具（archify/ 架构图生成）
