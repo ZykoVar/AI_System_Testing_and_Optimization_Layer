@@ -7,7 +7,7 @@
 - 依赖：pydantic ≥ 2.5、PyYAML、httpx（`pip install -e .` 自动安装）
 
 ```powershell
-cd D:\pycharm\llm_learn\llm-qa
+cd llm-qa    # 从仓库根目录进入
 pip install -e ".[dev]"     # dev 含 pytest
 llmqa --help
 ```

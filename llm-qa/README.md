@@ -4,7 +4,7 @@
 把 LLM/Agent 的全部测试流程沉淀为可复现、可回归、可上 CI 的代码资产：
 **Prompt 管理 · LLM 质量测试 · RAG 专项测试 · Agent 测试 · 安全红队测试 · 性能测试**。
 
-- 无厂商锁定：统一 `LLMClient` 抽象，同一批用例可在 Mock / OpenAI 兼容 / Anthropic / LiteLLM（100+ 模型）之间一键切换；成熟工具经 `llmqa/ext` 接入——LiteLLM 网关与真实向量库检索为**可用适配**，Ragas 提供**接入骨架**（adapter contract，绑定需按版本补全，不做过度声明）
+- 无厂商锁定：统一 `LLMClient` 抽象，同一批用例可在 Mock / OpenAI 兼容 / Anthropic / LiteLLM（100+ 模型）之间一键切换；成熟工具经 `llmqa/ext` 接入——LiteLLM 网关为**可用适配**、Retriever 协议为**可用契约**（真实向量库经 `harnesses/rag` 接入）、Langfuse 轨迹为**完整映射**（fixture 验证）、Ragas·LangSmith 为**接入骨架**（adapter contract，绑定需按版本补全，不做过度声明）
 - 离线可跑：内置确定性 Mock Provider 与脚本化规则，CI 冒烟零成本、零密钥
 - 企业级工程：版本化 Prompt 库、LLM-as-Judge、多格式报告（JSON/Markdown/HTML/JUnit）、失败分级与门禁退出码
 - 安全第一：内置提示注入/越狱/金丝雀泄露/数据外泄红队用例与 Prompt 发布前扫描
@@ -108,15 +108,17 @@ llm-qa/
 │   ├── prompts/            # PromptManager + PromptScanner（注入扫描）+ A/B 测试
 │   ├── datasets/           # 数据集加载器（YAML/JSON/CSV）
 │   ├── harnesses/          # RAGHarness（Retriever 可插拔）/ AgentHarness（护栏 + 轨迹归一）
-│   ├── ext/                # 成熟工具适配层：LiteLLM（可用）/ Ragas·LangSmith·Langfuse 骨架
+│   ├── ext/                # 成熟工具适配层：LiteLLM（可用适配）/ Langfuse（完整轨迹映射）/ Ragas·LangSmith（骨架）
 │   ├── suites/             # 五大内置测试套件（llm/rag/agent/security/performance）
 │   ├── demo.py             # 内置演示套件
 │   └── cli.py              # llmqa 命令行
 ├── tests/                  # 框架自身单元测试（pytest）
 ├── examples/               # 自定义套件示例
+├── reports/                # 运行产物（git 忽略；reports/baselines/ 例外提交——基线即测试资产）
 ├── scripts/                # 门禁与工具脚本：gate.py（严重级门禁）、lint_ids.py、
 │                           # gen_catalog.py、ast_diff.py + PowerShell 便捷脚本
 ├── docs/                   # 完整中文文档（含回归测试与运行溯源专题）
+├── pyproject.toml / LICENSE / Makefile / .pre-commit-config.yaml  # 工程配置
 └── .github/workflows/      # CI 集成（分级门禁）
 ```
 
